@@ -34,10 +34,10 @@ export class UserController {
     return this.userService.create(userData);
   }
 
-  @Delete('users/:slug')
-  async delete(@Param() params) {
-    return await this.userService.delete(params.slug);
-  }
+  @Delete('users/:email')
+async delete(@Param('email') email: string) {
+  return await this.userService.delete(email);
+}
 
   @UsePipes(new ValidationPipe())
   @Post('users/login')
