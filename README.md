@@ -1,138 +1,233 @@
-# ![Node/Express/Mongoose Example App](project-logo.png)
+# 🚀 Realworld API — NestJS
 
-[![Build Status](https://travis-ci.org/anishkny/node-express-realworld-example-app.svg?branch=master)](https://travis-ci.org/anishkny/node-express-realworld-example-app)
+A production-ready REST API built with **NestJS**, **TypeORM**, and **PostgreSQL**, implementing the [RealWorld](https://github.com/gothinkster/realworld) spec. Features JWT authentication, Swagger docs, argon2 password hashing, and full CRUD for articles, comments, tags, and user profiles.
 
-> ### NestJS codebase containing real world examples (CRUD, auth, advanced patterns, etc) that adheres to the [RealWorld](https://github.com/gothinkster/realworld-example-apps) API spec.
+---
 
+## Tech Stack
 
-----------
+| Layer      | Technology                          |
+| ---------- | ----------------------------------- |
+| Framework  | NestJS 10                           |
+| Language   | TypeScript                          |
+| Database   | PostgreSQL                          |
+| ORM        | TypeORM                             |
+| Auth       | JWT + argon2                        |
+| Validation | class-validator / class-transformer |
+| Docs       | Swagger / OpenAPI                   |
+| Testing    | Jest                                |
 
-# Getting started
+---
 
-## Installation
+## Features
 
-Clone the repository
+- **User auth** — register, login, JWT-protected routes
+- **Articles** — full CRUD, slug-based lookup, tag filtering, pagination
+- **Comments** — add and delete comments per article
+- **Favorites** — favorite / unfavorite articles with count tracking
+- **Follow system** — follow / unfollow users, personalized feed
+- **Tags** — paginated tag management with soft delete
+- **Profiles** — public profile with follow status
+- **Swagger UI** — interactive API docs at `/docs`
 
-    git clone https://github.com/lujakob/nestjs-realworld-example-app.git
+---
 
-Switch to the repo folder
+## Project Structure
 
-    cd nestjs-realworld-example-app
-    
-Install dependencies
-    
-    npm install
+```
+src/
+├── article/          # Articles, comments, favorites
+│   ├── dto/
+│   ├── entities/
+│   ├── article.controller.ts
+│   ├── article.service.ts
+│   └── article.module.ts
+├── profile/          # Follow/unfollow, profile view
+├── tag/              # Tag CRUD with pagination
+├── user/             # Auth, registration, user update
+│   ├── dto/
+│   ├── auth.middleware.ts
+│   ├── user.decorator.ts
+│   └── user.service.ts
+├── shared/
+│   └── pipes/        # Custom validation pipe
+├── app.module.ts
+└── main.ts
+```
 
-Copy config file and set JsonWebToken secret key
+---
 
-    cp src/config.ts.example src/config.ts
-    
-----------
+## Getting Started
 
-## Database
+### Prerequisites
 
-The codebase contains examples of two different database abstractions, namely [TypeORM](http://typeorm.io/) and [Prisma](https://www.prisma.io/). 
-    
-The branch `master` implements TypeORM with a mySQL database.
+- Node.js >= 18
+- PostgreSQL >= 14
+- npm or yarn
 
-The branch `prisma` implements Prisma with a mySQL database.
+### 1. Clone the repository
 
-----------
+```bash
+git clone https://github.com/your-username/realworld-nestjs.git
+cd realworld-nestjs
+```
 
-##### TypeORM
+### 2. Install dependencies
 
-----------
+```bash
+npm install
+```
 
-Create a new mysql database with the name `nestjsrealworld`\
-(or the name you specified in the ormconfig.json)
+### 3. Configure environment variables
 
-Copy TypeORM config example file for database settings
+Copy the example file and fill in your values:
 
-    cp ormconfig.json.example
-    
-Set mysql database settings in ormconfig.json
+```bash
+cp .env.example .env
+```
 
-    {
-      "type": "mysql",
-      "host": "localhost",
-      "port": 3306,
-      "username": "your-mysql-username",
-      "password": "your-mysql-password",
-      "database": "nestjsrealworld",
-      "entities": ["src/**/**.entity{.ts,.js}"],
-      "synchronize": true
-    }
-    
-Start local mysql server and create new database 'nestjsrealworld'
+| Variable          | Description                  | Default       |
+| ----------------- | ---------------------------- | ------------- |
+| `PORT`            | Port the server listens on   | `3000`        |
+| `NODE_ENV`        | `development` / `production` | `development` |
+| `DB_HOST`         | PostgreSQL host              | `localhost`   |
+| `DB_PORT`         | PostgreSQL port              | `5432`        |
+| `DB_USER`         | PostgreSQL username          | `postgres`    |
+| `DB_PASS`         | PostgreSQL password          | _(required)_  |
+| `DB_NAME`         | Database name                | `realworld`   |
+| `JWT_SECRET`      | Secret key for signing JWTs  | _(required)_  |
+| `ALLOWED_ORIGINS` | Comma-separated CORS origins | `*`           |
 
-On application start, tables for all entities will be created.
+### 4. Create the database
 
-----------
+```bash
+psql -U postgres -c "CREATE DATABASE realworld;"
+```
 
-##### Prisma
+### 5. Run the application
 
-----------
+```bash
+# Development (hot reload)
+npm run start:dev
 
-To run the example with Prisma checkout branch `prisma`, remove the node_modules and run `npm install`
+# Production build
+npm run build
+npm run start:prod
+```
 
-Create a new mysql database with the name `nestjsrealworld-prisma` (or the name you specified in `prisma/.env`)
+The API will be available at `http://localhost:3000/api`.
+Swagger UI is at `http://localhost:3000/docs`.
 
-Copy prisma config example file for database settings
+---
 
-    cp prisma/.env.example prisma/.env
+## API Overview
 
-Set mysql database settings in prisma/.env
+All routes are prefixed with `/api/v1`.
 
-    DATABASE_URL="mysql://USER:PASSWORD@HOST:PORT/DATABASE"
+### Auth
 
-To create all tables in the new database make the database migration from the prisma schema defined in prisma/schema.prisma
+| Method | Endpoint       | Auth | Description         |
+| ------ | -------------- | ---- | ------------------- |
+| POST   | `/users`       | ❌   | Register a new user |
+| POST   | `/users/login` | ❌   | Login, returns JWT  |
+| GET    | `/user`        | ✅   | Get current user    |
+| PUT    | `/user`        | ✅   | Update current user |
 
-    npx prisma migrate save --experimental
-    npx prisma migrate up --experimental
+### Articles
 
-Now generate the prisma client from the migrated database with the following command
+| Method | Endpoint          | Auth | Description                                      |
+| ------ | ----------------- | ---- | ------------------------------------------------ |
+| GET    | `/articles`       | ❌   | List articles (filter by tag, author, favorited) |
+| GET    | `/articles/feed`  | ✅   | Feed from followed users                         |
+| GET    | `/articles/:slug` | ❌   | Get single article                               |
+| POST   | `/articles`       | ✅   | Create article                                   |
+| PUT    | `/articles/:slug` | ✅   | Update article                                   |
+| DELETE | `/articles/:slug` | ✅   | Delete article                                   |
 
-    npx prisma generate
+### Comments
 
-The database tables are now set up and the prisma client is generated. For more information see the docs:
+| Method | Endpoint                       | Auth | Description    |
+| ------ | ------------------------------ | ---- | -------------- |
+| GET    | `/articles/:slug/comments`     | ❌   | Get comments   |
+| POST   | `/articles/:slug/comments`     | ✅   | Add comment    |
+| DELETE | `/articles/:slug/comments/:id` | ✅   | Delete comment |
 
-- https://www.prisma.io/docs/getting-started/setup-prisma/add-to-existing-project-typescript-mysql
+### Favorites & Profiles
 
+| Method | Endpoint                     | Auth | Description        |
+| ------ | ---------------------------- | ---- | ------------------ |
+| POST   | `/articles/:slug/favorite`   | ✅   | Favorite article   |
+| DELETE | `/articles/:slug/favorite`   | ✅   | Unfavorite article |
+| GET    | `/profiles/:username`        | ❌   | Get profile        |
+| POST   | `/profiles/:username/follow` | ✅   | Follow user        |
+| DELETE | `/profiles/:username/follow` | ✅   | Unfollow user      |
 
-----------
+### Tags
 
-## NPM scripts
+| Method | Endpoint    | Auth | Description                       |
+| ------ | ----------- | ---- | --------------------------------- |
+| GET    | `/tags`     | ❌   | List tags (paginated, searchable) |
+| GET    | `/tags/:id` | ❌   | Get tag by ID                     |
+| POST   | `/tags`     | ✅   | Create tag                        |
+| PUT    | `/tags/:id` | ✅   | Update tag                        |
+| DELETE | `/tags/:id` | ✅   | Soft-delete tag                   |
 
-- `npm start` - Start application
-- `npm run start:watch` - Start application in watch mode
-- `npm run test` - run Jest test runner 
-- `npm run start:prod` - Build application
+---
 
-----------
+## Running Tests
 
-## API Specification
+```bash
+# Unit tests
+npm run test
 
-This application adheres to the api specifications set by the [Thinkster](https://github.com/gothinkster) team. This helps mix and match any backend with any other frontend without conflicts.
+# Watch mode
+npm run test:watch
 
-> [Full API Spec](https://github.com/gothinkster/realworld/tree/master/api)
+# Coverage report
+npm run test:cov
+```
 
-More information regarding the project can be found here https://github.com/gothinkster/realworld
+---
 
-----------
+## Security Highlights
 
-## Start application
+- Passwords hashed with **argon2** (not bcrypt)
+- JWT tokens expire after **7 days**
+- Password column excluded from all queries by default (`select: false`)
+- Generic login error message prevents **email enumeration**
+- CORS configured via environment variable
+- Input validation with **whitelist** mode — unknown fields are stripped and rejected
 
-- `npm start`
-- Test api with `http://localhost:3000/api/articles` in your favourite browser
+---
 
-----------
+## Example `.env`
 
-# Authentication
- 
-This applications uses JSON Web Token (JWT) to handle authentication. The token is passed with each request using the `Authorization` header with `Token` scheme. The JWT authentication middleware handles the validation and authentication of the token. Please check the following sources to learn more about JWT.
+```env
+PORT=3000
+NODE_ENV=development
 
-----------
- 
-# Swagger API docs
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=postgres
+DB_PASS=yourpassword
+DB_NAME=realworld
 
-This example repo uses the NestJS swagger module for API documentation. [NestJS Swagger](https://github.com/nestjs/swagger) - [www.swagger.io](https://swagger.io/)        
+JWT_SECRET=your-super-secret-key-change-this
+
+ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
+```
+
+---
+
+## Health Check
+
+```bash
+curl http://localhost:3000/api/health
+# {"status":"ok","timestamp":"2026-04-28T10:00:00.000Z","uptime":42}
+```
+
+---
+
+## License
+
+MIT

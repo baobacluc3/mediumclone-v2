@@ -7,8 +7,8 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { DataSource, DeleteResult, Repository } from "typeorm";
 import slugify from "slug";
 
-import { ArticleEntity } from "./entities/article.entity";
-import { Comment } from "./entities/comment.entity";
+import { ArticleEntity } from "./article.entity";
+import { Comment } from "./comment.entity";
 import { UserEntity } from "../user/user.entity";
 import { FollowsEntity } from "../profile/follows.entity";
 import { CreateArticleDto, CreateCommentDto, ArticleQueryDto } from "./dto";

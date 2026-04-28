@@ -6,7 +6,25 @@
     "json"
   ],
   "transform": {
-    "^.+\\.tsx?$": "<rootDir>/node_modules/ts-jest/preprocessor.js"
+    "^.+\\.tsx?$": [
+      "@swc/jest",
+      {
+        "jsc": {
+          "parser": {
+            "syntax": "typescript",
+            "decorators": true
+          },
+          "transform": {
+            "legacyDecorator": true,
+            "decoratorMetadata": true
+          },
+          "target": "es2021"
+        },
+        "module": {
+          "type": "commonjs"
+        }
+      }
+    ]
   },
   "testRegex": "/src/.*\\.(test|spec).(ts|tsx|js)$",
   "collectCoverageFrom" : ["src/**/*.{js,jsx,tsx,ts}", "!**/node_modules/**", "!**/vendor/**"],

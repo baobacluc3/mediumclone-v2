@@ -10,10 +10,10 @@ services:
     environment:
       - NODE_ENV=development
       - DB_HOST=db
-      - DB_PORT=3306
-      - DB_USERNAME=root
-      - DB_PASSWORD=secret
-      - DB_DATABASE=nestjsrealworld
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASS=secret
+      - DB_NAME=realworld
       - JWT_SECRET=your_jwt_secret_here
     depends_on:
       db:
@@ -24,20 +24,21 @@ services:
     command: npm run start:dev
 
   db:
-    image: mysql:8.3
+    image: postgres:16
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: secret
-      MYSQL_DATABASE: nestjsrealworld
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: realworld
     ports:
-      - "3306:3306"
+      - "5432:5432"
     volumes:
-      - mysql_data:/var/lib/mysql
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-psecret"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d realworld"]
       interval: 10s
       timeout: 5s
       retries: 5
 
 volumes:
-  mysql_data:
+  postgres_data:
