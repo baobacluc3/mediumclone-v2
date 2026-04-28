@@ -1,41 +1,70 @@
-import {PipeTransform, ArgumentMetadata, BadRequestException, HttpStatus, Injectable} from '@nestjs/common';
-import { validate } from 'class-validator';
-import { plainToClass } from 'class-transformer';
-import { HttpException } from '@nestjs/common/exceptions/http.exception';
+import {
+  PipeTransform,
+  ArgumentMetadata,
+  BadRequestException,
+  Injectable,
+  Logger,
+} from "@nestjs/common";
+import { validate, ValidationError } from "class-validator";
+import { plainToInstance } from "class-transformer";
+
+type Primitive =
+  | StringConstructor
+  | BooleanConstructor
+  | NumberConstructor
+  | ArrayConstructor
+  | ObjectConstructor;
 
 @Injectable()
-export class ValidationPipe implements PipeTransform<any> {
-  async transform(value, metadata: ArgumentMetadata) {
+export class ValidationPipe implements PipeTransform {
+  private readonly logger = new Logger(ValidationPipe.name);
 
-    if (!value) {
-      throw new BadRequestException('No data submitted');
+  async transform<T>(
+    value: unknown,
+    { metatype }: ArgumentMetadata,
+  ): Promise<T> {
+    if (value === null || value === undefined) {
+      throw new BadRequestException("No data submitted");
     }
 
-    const { metatype } = metadata;
-    if (!metatype || !this.toValidate(metatype)) {
-      return value;
+    if (!metatype || this.isPrimitive(metatype as Primitive)) {
+      return value as T;
     }
-    const object = plainToClass(metatype, value);
-    const errors = await validate(object);
-    if (errors.length > 0) {
-      throw new HttpException({message: 'Input data validation failed', errors:  this.buildError(errors)}, HttpStatus.BAD_REQUEST);
-    }
-    return value;
-  }
 
-  private buildError(errors) {
-    const result = {};
-    errors.forEach(el => {
-      let prop = el.property;
-      Object.entries(el.constraints).forEach(constraint => {
-        result[prop + constraint[0]] = `${constraint[1]}`;
-      });
+    const object = plainToInstance(metatype, value);
+    const errors = await validate(object as object, {
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      skipMissingProperties: false,
     });
-    return result;
+
+    if (errors.length > 0) {
+      const formattedErrors = this.formatErrors(errors);
+      this.logger.warn("Validation failed", formattedErrors);
+      throw new BadRequestException({
+        message: "Validation failed",
+        errors: formattedErrors,
+      });
+    }
+
+    return value as T;
   }
 
-  private toValidate(metatype): boolean {
-    const types = [String, Boolean, Number, Array, Object];
-    return !types.find((type) => metatype === type);
+  private formatErrors(errors: ValidationError[]): Record<string, string[]> {
+    return errors.reduce<Record<string, string[]>>((acc, error) => {
+      const field = error.property;
+      acc[field] = Object.values(error.constraints ?? {});
+
+      // Xử lý nested validation errors
+      if (error.children?.length) {
+        const nested = this.formatErrors(error.children);
+        Object.assign(acc, nested);
+      }
+      return acc;
+    }, {});
+  }
+
+  private isPrimitive(metatype: Primitive): boolean {
+    return [String, Boolean, Number, Array, Object].includes(metatype);
   }
 }
