@@ -1,6 +1,6 @@
-# 🚀 Realworld API — NestJS
+# API — NestJS
 
-A production-ready REST API built with **NestJS**, **TypeORM**, and **PostgreSQL**, implementing the [RealWorld](https://github.com/gothinkster/realworld) spec. Features JWT authentication, Swagger docs, argon2 password hashing, and full CRUD for articles, comments, tags, and user profiles.
+A production-ready REST API built with **NestJS**, **TypeORM**, and **PostgreSQL**,(https://github.com/gothinkster/realworld) spec. Features JWT authentication, Swagger docs, argon2 password hashing, and full CRUD for articles, comments, tags, and user profiles.
 
 ---
 
