@@ -1,25 +1,5 @@
-import { UserData } from '../user/user.interface';
-import { ArticleEntity } from './article.entity';
-interface Comment {
-  body: string;
-}
-
-interface ArticleData {
-  slug: string;
-  title: string;
-  description: string;
-  body?: string;
-  tagList?: string[];
-  createdAt?: Date
-  updatedAt?: Date
-  favorited?: boolean;
-  favoritesCount?: number;
-  author?: UserData;
-}
-
-export interface CommentsRO {
-  comments: Comment[];
-}
+import { ArticleEntity } from "./entities/article.entity";
+import { Comment } from "./entities/comment.entity";
 
 export interface ArticleRO {
   article: ArticleEntity;
@@ -30,3 +10,6 @@ export interface ArticlesRO {
   articlesCount: number;
 }
 
+export interface CommentsRO {
+  comments: Comment[];
+}

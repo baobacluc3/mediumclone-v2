@@ -1,55 +1,106 @@
-import { Get, Post, Body, Put, Delete, Param, Controller, UsePipes } from '@nestjs/common';
-import { Request } from 'express';
-import { UserService } from './user.service';
-import { UserRO } from './user.interface';
-import { CreateUserDto, UpdateUserDto, LoginUserDto } from './dto';
-import { HttpException } from '@nestjs/common/exceptions/http.exception';
-import { User } from './user.decorator';
-import { ValidationPipe } from '../shared/pipes/validation.pipe';
-
 import {
-  ApiBearerAuth, ApiTags
-} from '@nestjs/swagger';
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Controller,
+  UsePipes,
+  HttpCode,
+  HttpStatus,
+  ParseIntPipe,
+  UnauthorizedException,
+  Logger,
+} from "@nestjs/common";
+import {
+  ApiBearerAuth,
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiParam,
+  ApiBody,
+} from "@nestjs/swagger";
+
+import { UserService } from "./user.service";
+import { UserRO } from "./user.interface";
+import { CreateUserDto, UpdateUserDto, LoginUserDto } from "./dto";
+import { ValidationPipe } from "../shared/pipes/validation.pipe";
+import { User } from "./user.decorator";
 
 @ApiBearerAuth()
-@ApiTags('user')
+@ApiTags("Users")
+@UsePipes(new ValidationPipe())
 @Controller()
 export class UserController {
+  private readonly logger = new Logger(UserController.name);
 
   constructor(private readonly userService: UserService) {}
 
-  @Get('user')
-  async findMe(@User('email') email: string): Promise<UserRO> {
-    return await this.userService.findByEmail(email);
+  // GET /user — current authenticated user
+  @Get("user")
+  @ApiOperation({ summary: "Get current authenticated user" })
+  @ApiResponse({ status: 200, description: "Returns the logged-in user." })
+  @ApiResponse({ status: 401, description: "Unauthorized." })
+  async findMe(@User("email") email: string): Promise<UserRO> {
+    return this.userService.findByEmail(email);
   }
 
-  @Put('user')
-  async update(@User('id') userId: number, @Body('user') userData: UpdateUserDto) {
-    return await this.userService.update(userId, userData);
+  // PUT /user — update current authenticated user
+  @Put("user")
+  @ApiOperation({ summary: "Update current authenticated user" })
+  @ApiBody({ type: UpdateUserDto })
+  @ApiResponse({ status: 200, description: "User updated successfully." })
+  @ApiResponse({ status: 400, description: "Validation failed." })
+  async update(
+    @User("id") userId: number,
+    @Body("user") dto: UpdateUserDto,
+  ): Promise<UserRO> {
+    return this.userService.update(userId, dto);
   }
 
-  @UsePipes(new ValidationPipe())
-  @Post('users')
-  async create(@Body('user') userData: CreateUserDto) {
-    return this.userService.create(userData);
+  // POST /users — register a new user
+  @Post("users")
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: "Register a new user" })
+  @ApiBody({ type: CreateUserDto })
+  @ApiResponse({ status: 201, description: "User created successfully." })
+  @ApiResponse({ status: 400, description: "Validation failed." })
+  @ApiResponse({ status: 409, description: "Username or email already taken." })
+  async create(@Body("user") dto: CreateUserDto): Promise<UserRO> {
+    return this.userService.create(dto);
   }
 
-  @Delete('users/:email')
-async delete(@Param('email') email: string) {
-  return await this.userService.delete(email);
-}
+  // POST /users/login
+  @Post("users/login")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Login with email and password" })
+  @ApiBody({ type: LoginUserDto })
+  @ApiResponse({ status: 200, description: "Login successful." })
+  @ApiResponse({ status: 401, description: "Invalid credentials." })
+  async login(@Body("user") dto: LoginUserDto): Promise<UserRO> {
+    const user = await this.userService.findOne(dto);
 
-  @UsePipes(new ValidationPipe())
-  @Post('users/login')
-  async login(@Body('user') loginUserDto: LoginUserDto): Promise<UserRO> {
-    const _user = await this.userService.findOne(loginUserDto);
+    if (!user) {
+      // Generic message prevents email enumeration attacks
+      throw new UnauthorizedException("Invalid email or password.");
+    }
 
-    const errors = {User: ' not found'};
-    if (!_user) throw new HttpException({errors}, 401);
+    const token = this.userService.generateJWT(user);
+    const { email, username, bio, image } = user;
 
-    const token = await this.userService.generateJWT(_user);
-    const {email, username, bio, image} = _user;
-    const user = {email, token, username, bio, image};
-    return {user}
+    this.logger.log(`User logged in: ${email}`);
+    return { user: { email, token, username, bio, image } };
+  }
+
+  // DELETE /users/:id
+  @Delete("users/:id")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: "Delete a user by ID" })
+  @ApiParam({ name: "id", type: Number, description: "User ID" })
+  @ApiResponse({ status: 204, description: "User deleted successfully." })
+  @ApiResponse({ status: 404, description: "User not found." })
+  async delete(@Param("id", ParseIntPipe) id: number): Promise<void> {
+    await this.userService.delete(id);
   }
 }

@@ -1,136 +1,142 @@
-import { Injectable } from "@nestjs/common";
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  Logger,
+} from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository, getRepository, DeleteResult } from "typeorm";
+import { ConfigService } from "@nestjs/config";
+import { Repository } from "typeorm";
+import * as argon2 from "argon2";
+import * as jwt from "jsonwebtoken";
+
 import { UserEntity } from "./user.entity";
 import { CreateUserDto, LoginUserDto, UpdateUserDto } from "./dto";
-import * as jwt from "jsonwebtoken";
-import { SECRET } from "../config";
 import { UserRO } from "./user.interface";
-import { validate } from "class-validator";
-import { HttpException } from "@nestjs/common/exceptions/http.exception";
-import { HttpStatus } from "@nestjs/common";
-import * as argon2 from "argon2";
 
 @Injectable()
 export class UserService {
+  private readonly logger = new Logger(UserService.name);
+
   constructor(
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
+    private readonly configService: ConfigService,
   ) {}
 
-  async findAll(): Promise<UserEntity[]> {
-    return await this.userRepository.find();
-  }
+  // ──────────────────────────────────────────────
+  // Auth
+  // ──────────────────────────────────────────────
 
-  async findOne({ email, password }: LoginUserDto): Promise<UserEntity> {
-    const user = await this.userRepository.findOne({
-      where: { email },
-    });
-    if (!user) {
-      return null;
-    }
-
-    if (await argon2.verify(user.password, password)) {
-      return user;
-    }
-
-    return null;
-  }
-
-  async create(dto: CreateUserDto): Promise<UserRO> {
-    // check uniqueness of username/email
-    const { username, email, password } = dto;
-    const qb = await getRepository(UserEntity)
+  /**
+   * Verifies credentials and returns the matching user, or null if invalid.
+   * We explicitly select `password` here because the column is hidden by default.
+   */
+  async findOne({ email, password }: LoginUserDto): Promise<UserEntity | null> {
+    const user = await this.userRepository
       .createQueryBuilder("user")
-      .where("user.username = :username", { username })
-      .orWhere("user.email = :email", { email });
+      .addSelect("user.password") // override select: false on the column
+      .where("user.email = :email", { email })
+      .getOne();
 
-    const user = await qb.getOne();
+    if (!user) return null;
 
-    if (user) {
-      const errors = { username: "Username and email must be unique." };
-      throw new HttpException(
-        { message: "Input data validation failed", errors },
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
-    // create new user
-    let newUser = new UserEntity();
-    newUser.username = username;
-    newUser.email = email;
-    newUser.password = password;
-    newUser.articles = [];
-
-    const errors = await validate(newUser);
-    if (errors.length > 0) {
-      const _errors = { username: "Userinput is not valid." };
-      throw new HttpException(
-        { message: "Input data validation failed", _errors },
-        HttpStatus.BAD_REQUEST,
-      );
-    } else {
-      const savedUser = await this.userRepository.save(newUser);
-      return this.buildUserRO(savedUser);
-    }
+    const isPasswordValid = await argon2.verify(user.password, password);
+    return isPasswordValid ? user : null;
   }
 
-  async update(id: number, dto: UpdateUserDto): Promise<UserEntity> {
-    const toUpdate = await this.userRepository.findOne({ where: { id } });
-    if (!toUpdate)
-      throw new HttpException("User not found", HttpStatus.NOT_FOUND);
+  // ──────────────────────────────────────────────
+  // CRUD
+  // ──────────────────────────────────────────────
 
-    const { password, favorites, ...safeFields } = toUpdate; // don't spread password
-    const updated = Object.assign(safeFields, dto);
-    return await this.userRepository.save(updated);
-  }
-
-  async delete(email: string): Promise<DeleteResult> {
-    return await this.userRepository.delete({ email: email });
+  async findAll(): Promise<UserEntity[]> {
+    return this.userRepository.find();
   }
 
   async findById(id: number): Promise<UserRO> {
-    const user = await this.userRepository.findOne({
-      where: { id },
-    });
-    if (!user) {
-      const errors = { User: " not found" };
-      throw new HttpException({ errors }, 401);
-    }
-
+    const user = await this.userRepository.findOne({ where: { id } });
+    if (!user) throw new NotFoundException(`User #${id} not found`);
     return this.buildUserRO(user);
   }
 
   async findByEmail(email: string): Promise<UserRO> {
     const user = await this.userRepository.findOne({ where: { email } });
+    if (!user)
+      throw new NotFoundException(`User with email "${email}" not found`);
     return this.buildUserRO(user);
   }
 
-  public generateJWT(user) {
-    let today = new Date();
-    let exp = new Date(today);
-    exp.setDate(today.getDate() + 60);
+  async create(dto: CreateUserDto): Promise<UserRO> {
+    const { username, email, password } = dto;
 
+    const exists = await this.userRepository.findOne({
+      where: [{ username }, { email }],
+    });
+    if (exists) {
+      throw new ConflictException("Username or email is already taken.");
+    }
+
+    // Service owns password hashing. @BeforeInsert() has been removed from the
+    // entity to avoid double-hashing (hash of a hash breaks login).
+    const newUser = this.userRepository.create({
+      username,
+      email,
+      password: await argon2.hash(password),
+    });
+
+    const savedUser = await this.userRepository.save(newUser);
+    this.logger.log(`User created: ${savedUser.email}`);
+    return this.buildUserRO(savedUser);
+  }
+
+  async update(id: number, dto: UpdateUserDto): Promise<UserRO> {
+    const user = await this.userRepository.findOne({ where: { id } });
+    if (!user) throw new NotFoundException(`User #${id} not found`);
+
+    // Hash new password only if it is being changed
+    const updatedData = { ...dto };
+    if (updatedData.password) {
+      updatedData.password = await argon2.hash(updatedData.password);
+    }
+
+    const updated = this.userRepository.merge(user, updatedData);
+    const savedUser = await this.userRepository.save(updated);
+    return this.buildUserRO(savedUser);
+  }
+
+  /**
+   * BUG FIX: original service accepted `email: string` but controller passed
+   * a numeric `id`. Signature now matches the controller and REST convention.
+   */
+  async delete(id: number): Promise<void> {
+    const user = await this.userRepository.findOne({ where: { id } });
+    if (!user) throw new NotFoundException(`User #${id} not found`);
+    await this.userRepository.delete(id);
+    this.logger.log(`User #${id} deleted`);
+  }
+
+  // ──────────────────────────────────────────────
+  // Helpers
+  // ──────────────────────────────────────────────
+
+  generateJWT(user: UserEntity): string {
+    const secret = this.configService.getOrThrow<string>("JWT_SECRET");
     return jwt.sign(
-      {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        exp: exp.getTime() / 1000,
-      },
-      SECRET,
+      { id: user.id, username: user.username, email: user.email },
+      secret,
+      { expiresIn: "7d" },
     );
   }
 
-  private buildUserRO(user: UserEntity) {
-    const userRO = {
-      username: user.username,
-      email: user.email,
-      bio: user.bio,
-      token: this.generateJWT(user),
-      image: user.image,
+  private buildUserRO(user: UserEntity): UserRO {
+    return {
+      user: {
+        username: user.username,
+        email: user.email,
+        bio: user.bio ?? "",
+        image: user.image ?? "",
+        token: this.generateJWT(user),
+      },
     };
-
-    return { user: userRO };
   }
 }

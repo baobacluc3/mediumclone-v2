@@ -1,31 +1,44 @@
-import { HttpException } from '@nestjs/common/exceptions/http.exception';
-import { NestMiddleware, HttpStatus, Injectable } from '@nestjs/common';
-import { ExtractJwt, Strategy } from 'passport-jwt';
-import { Request, Response, NextFunction } from 'express';
-import * as jwt from 'jsonwebtoken';
-import { SECRET } from '../config';
-import { UserService } from './user.service';
+import {
+  Injectable,
+  NestMiddleware,
+  HttpException,
+  HttpStatus,
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { Request, Response, NextFunction } from "express";
+import * as jwt from "jsonwebtoken";
+import { UserService } from "./user.service";
 
 @Injectable()
 export class AuthMiddleware implements NestMiddleware {
-  constructor(private readonly userService: UserService) {}
+  constructor(
+    private readonly userService: UserService,
+    private readonly configService: ConfigService,
+  ) {}
 
-  async use(req: Request, res: Response, next: NextFunction) {
-    const authHeaders = req.headers.authorization;
-    if (authHeaders && (authHeaders as string).split(' ')[1]) {
-      const token = (authHeaders as string).split(' ')[1];
-      const decoded: any = jwt.verify(token, SECRET);
-      const user = await this.userService.findById(decoded.id);
+  async use(req: Request, res: Response, next: NextFunction): Promise<void> {
+    const authHeader = req.headers.authorization;
 
-      if (!user) {
-        throw new HttpException('User not found.', HttpStatus.UNAUTHORIZED);
-      }
-
-      req.user = user.user;
-      next();
-
-    } else {
-      throw new HttpException('Not authorized.', HttpStatus.UNAUTHORIZED);
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      throw new HttpException("Not authorized.", HttpStatus.UNAUTHORIZED);
     }
+
+    const token = authHeader.split(" ")[1];
+
+    let decoded: { id: number };
+    try {
+      const secret = this.configService.getOrThrow<string>("JWT_SECRET");
+      decoded = jwt.verify(token, secret) as { id: number };
+    } catch (err) {
+      // Distinguish expired vs malformed tokens for clearer error messages
+      if (err instanceof jwt.TokenExpiredError) {
+        throw new HttpException("Token has expired.", HttpStatus.UNAUTHORIZED);
+      }
+      throw new HttpException("Invalid token.", HttpStatus.UNAUTHORIZED);
+    }
+
+    const userRO = await this.userService.findById(decoded.id);
+    req.user = userRO.user;
+    next();
   }
 }

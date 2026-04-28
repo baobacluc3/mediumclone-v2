@@ -1,15 +1,29 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
-import { ArticleEntity } from './article.entity';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  CreateDateColumn,
+} from "typeorm";
+import { ArticleEntity } from "./article.entity";
+import { UserEntity } from "../../user/user.entity";
 
-@Entity()
+@Entity("comments")
 export class Comment {
-
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ type: "text" })
   body: string;
 
-  @ManyToOne(type => ArticleEntity, article => article.comments)
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @ManyToOne(() => ArticleEntity, (article) => article.comments, {
+    onDelete: "CASCADE",
+  })
   article: ArticleEntity;
+
+  @ManyToOne(() => UserEntity, { eager: true, nullable: true })
+  author: UserEntity;
 }

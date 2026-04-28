@@ -1,39 +1,47 @@
-import {Entity, PrimaryGeneratedColumn, Column, BeforeInsert, JoinTable, ManyToMany, OneToMany} from 'typeorm';
-import { IsEmail } from 'class-validator';
-import * as argon2 from 'argon2';
-import { ArticleEntity } from '../article/article.entity';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  JoinTable,
+  ManyToMany,
+  OneToMany,
+} from "typeorm";
+import { IsEmail } from "class-validator";
+import { ArticleEntity } from "../article/article.entity";
 
-@Entity('user')
+@Entity("user")
 export class UserEntity {
-
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ unique: true })
   username: string;
 
-  @Column()
+  @Column({ unique: true })
   @IsEmail()
   email: string;
 
-  @Column({default: ''})
+  @Column({ default: "" })
   bio: string;
 
-  @Column({default: ''})
+  @Column({ default: "" })
   image: string;
 
-  @Column()
+  @Column({ select: false }) // never leak password in queries by default
   password: string;
 
-  @BeforeInsert()
-  async hashPassword() {
-    this.password = await argon2.hash(this.password);
-  }
+  @CreateDateColumn()
+  createdAt: Date;
 
-  @ManyToMany(type => ArticleEntity)
+  @UpdateDateColumn()
+  updatedAt: Date;
+
+  @ManyToMany(() => ArticleEntity)
   @JoinTable()
   favorites: ArticleEntity[];
 
-  @OneToMany(type => ArticleEntity, article => article.author)
+  @OneToMany(() => ArticleEntity, (article) => article.author)
   articles: ArticleEntity[];
 }

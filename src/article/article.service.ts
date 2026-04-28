@@ -1,14 +1,18 @@
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, getRepository, DeleteResult } from 'typeorm';
-import { ArticleEntity } from './article.entity';
-import { Comment } from './comment.entity';
-import { UserEntity } from '../user/user.entity';
-import { FollowsEntity } from '../profile/follows.entity';
-import { CreateArticleDto } from './dto';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { DataSource, DeleteResult, Repository } from "typeorm";
+import slugify from "slug";
 
-import {ArticleRO, ArticlesRO, CommentsRO} from './article.interface';
-const slug = require('slug');
+import { ArticleEntity } from "./entities/article.entity";
+import { Comment } from "./entities/comment.entity";
+import { UserEntity } from "../user/user.entity";
+import { FollowsEntity } from "../profile/follows.entity";
+import { CreateArticleDto, CreateCommentDto, ArticleQueryDto } from "./dto";
+import { ArticleRO, ArticlesRO, CommentsRO } from "./article.interface";
 
 @Injectable()
 export class ArticleService {
@@ -20,185 +24,233 @@ export class ArticleService {
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
     @InjectRepository(FollowsEntity)
-    private readonly followsRepository: Repository<FollowsEntity>
+    private readonly followsRepository: Repository<FollowsEntity>,
+    private readonly dataSource: DataSource,
   ) {}
 
-  async findAll(query): Promise<ArticlesRO> {
+  async findAll(query: ArticleQueryDto): Promise<ArticlesRO> {
+    const qb = this.dataSource
+      .getRepository(ArticleEntity)
+      .createQueryBuilder("article")
+      .leftJoinAndSelect("article.author", "author")
+      .orderBy("article.createdAt", "DESC");
 
-    const qb = await getRepository(ArticleEntity)
-      .createQueryBuilder('article')
-      .leftJoinAndSelect('article.author', 'author');
-
-    qb.where("1 = 1");
-
-    if ('tag' in query) {
+    if (query.tag) {
       qb.andWhere("article.tagList LIKE :tag", { tag: `%${query.tag}%` });
     }
 
-    if ('author' in query) {
-      const author = await this.userRepository.findOne({username: query.author});
+    if (query.author) {
+      const author = await this.userRepository.findOneBy({
+        username: query.author,
+      });
+      if (!author) return { articles: [], articlesCount: 0 };
       qb.andWhere("article.authorId = :id", { id: author.id });
     }
 
-    if ('favorited' in query) {
-      const author = await this.userRepository.findOne({username: query.favorited});
-      const ids = author.favorites.map(el => el.id);
-      qb.andWhere("article.authorId IN (:ids)", { ids });
+    if (query.favorited) {
+      const user = await this.userRepository.findOne({
+        where: { username: query.favorited },
+        relations: ["favorites"],
+      });
+      if (!user) return { articles: [], articlesCount: 0 };
+      const ids = user.favorites.map((a) => a.id);
+      if (ids.length === 0) return { articles: [], articlesCount: 0 };
+      qb.andWhere("article.id IN (:...ids)", { ids });
     }
-
-    qb.orderBy('article.created', 'DESC');
 
     const articlesCount = await qb.getCount();
-
-    if ('limit' in query) {
-      qb.limit(query.limit);
-    }
-
-    if ('offset' in query) {
-      qb.offset(query.offset);
-    }
-
+    qb.skip(query.offset).take(query.limit);
     const articles = await qb.getMany();
 
-    return {articles, articlesCount};
+    return { articles, articlesCount };
   }
 
-  async findFeed(userId: number, query): Promise<ArticlesRO> {
-    const _follows = await this.followsRepository.find( {followerId: userId});
+  async findFeed(userId: number, query: ArticleQueryDto): Promise<ArticlesRO> {
+    const follows = await this.followsRepository.findBy({ followerId: userId });
 
-    if (!(Array.isArray(_follows) && _follows.length > 0)) {
-      return {articles: [], articlesCount: 0};
+    if (!follows.length) {
+      return { articles: [], articlesCount: 0 };
     }
 
-    const ids = _follows.map(el => el.followingId);
+    const ids = follows.map((f) => f.followingId);
 
-    const qb = await getRepository(ArticleEntity)
-      .createQueryBuilder('article')
-      .where('article.authorId IN (:ids)', { ids });
-
-    qb.orderBy('article.created', 'DESC');
+    const qb = this.dataSource
+      .getRepository(ArticleEntity)
+      .createQueryBuilder("article")
+      .leftJoinAndSelect("article.author", "author")
+      .where("article.authorId IN (:...ids)", { ids })
+      .orderBy("article.createdAt", "DESC");
 
     const articlesCount = await qb.getCount();
-
-    if ('limit' in query) {
-      qb.limit(query.limit);
-    }
-
-    if ('offset' in query) {
-      qb.offset(query.offset);
-    }
-
+    qb.skip(query.offset).take(query.limit);
     const articles = await qb.getMany();
 
-    return {articles, articlesCount};
+    return { articles, articlesCount };
   }
 
-  async findOne(where): Promise<ArticleRO> {
-    const article = await this.articleRepository.findOne(where);
-    return {article};
+  async findOne(slug: string): Promise<ArticleRO> {
+    const article = await this.articleRepository.findOne({
+      where: { slug },
+      relations: ["author"],
+    });
+
+    if (!article) {
+      throw new NotFoundException(`Article with slug "${slug}" not found`);
+    }
+
+    return { article };
   }
 
-  async addComment(slug: string, commentData): Promise<ArticleRO> {
-    let article = await this.articleRepository.findOne({slug});
+  async create(userId: number, dto: CreateArticleDto): Promise<ArticleRO> {
+    const author = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ["articles"],
+    });
 
-    const comment = new Comment();
-    comment.body = commentData.body;
+    if (!author) throw new NotFoundException("User not found");
 
-    article.comments.push(comment);
+    const article = this.articleRepository.create({
+      ...dto,
+      slug: this.generateSlug(dto.title),
+      tagList: dto.tagList ?? [],
+      comments: [],
+      author,
+    });
+
+    const saved = await this.articleRepository.save(article);
+    return { article: saved };
+  }
+
+  async update(
+    slug: string,
+    userId: number,
+    dto: Partial<CreateArticleDto>,
+  ): Promise<ArticleRO> {
+    const article = await this.articleRepository.findOne({
+      where: { slug },
+      relations: ["author"],
+    });
+
+    if (!article) throw new NotFoundException("Article not found");
+    if (article.author.id !== userId)
+      throw new ForbiddenException("You can only edit your own articles");
+
+    if (dto.title && dto.title !== article.title) {
+      article.slug = this.generateSlug(dto.title);
+    }
+
+    Object.assign(article, dto);
+    const updated = await this.articleRepository.save(article);
+
+    return { article: updated };
+  }
+
+  async delete(slug: string, userId: number): Promise<DeleteResult> {
+    const article = await this.articleRepository.findOne({
+      where: { slug },
+      relations: ["author"],
+    });
+
+    if (!article) throw new NotFoundException("Article not found");
+    if (article.author.id !== userId)
+      throw new ForbiddenException("You can only delete your own articles");
+
+    return this.articleRepository.delete({ slug });
+  }
+
+  async addComment(
+    slug: string,
+    userId: number,
+    dto: CreateCommentDto,
+  ): Promise<ArticleRO> {
+    const article = await this.articleRepository.findOne({ where: { slug } });
+    if (!article) throw new NotFoundException("Article not found");
+
+    const author = await this.userRepository.findOneBy({ id: userId });
+
+    const comment = this.commentRepository.create({
+      body: dto.body,
+      article,
+      author,
+    });
 
     await this.commentRepository.save(comment);
-    article = await this.articleRepository.save(article);
-    return {article}
+    const updated = await this.articleRepository.findOne({ where: { slug } });
+
+    return { article: updated };
   }
 
-  async deleteComment(slug: string, id: string): Promise<ArticleRO> {
-    let article = await this.articleRepository.findOne({slug});
+  async deleteComment(
+    slug: string,
+    commentId: number,
+    userId: number,
+  ): Promise<CommentsRO> {
+    const article = await this.articleRepository.findOne({ where: { slug } });
+    if (!article) throw new NotFoundException("Article not found");
 
-    const comment = await this.commentRepository.findOne(id);
-    const deleteIndex = article.comments.findIndex(_comment => _comment.id === comment.id);
+    const comment = await this.commentRepository.findOne({
+      where: { id: commentId },
+      relations: ["author"],
+    });
 
-    if (deleteIndex >= 0) {
-      const deleteComments = article.comments.splice(deleteIndex, 1);
-      await this.commentRepository.delete(deleteComments[0].id);
-      article =  await this.articleRepository.save(article);
-      return {article};
-    } else {
-      return {article};
-    }
+    if (!comment) throw new NotFoundException("Comment not found");
+    if (comment.author?.id !== userId)
+      throw new ForbiddenException("You can only delete your own comments");
 
-  }
+    await this.commentRepository.delete(commentId);
 
-  async favorite(id: number, slug: string): Promise<ArticleRO> {
-    let article = await this.articleRepository.findOne({slug});
-    const user = await this.userRepository.findOne(id);
-
-    const isNewFavorite = user.favorites.findIndex(_article => _article.id === article.id) < 0;
-    if (isNewFavorite) {
-      user.favorites.push(article);
-      article.favoriteCount++;
-
-      await this.userRepository.save(user);
-      article = await this.articleRepository.save(article);
-    }
-
-    return {article};
-  }
-
-  async unFavorite(id: number, slug: string): Promise<ArticleRO> {
-    let article = await this.articleRepository.findOne({slug});
-    const user = await this.userRepository.findOne(id);
-
-    const deleteIndex = user.favorites.findIndex(_article => _article.id === article.id);
-
-    if (deleteIndex >= 0) {
-
-      user.favorites.splice(deleteIndex, 1);
-      article.favoriteCount--;
-
-      await this.userRepository.save(user);
-      article = await this.articleRepository.save(article);
-    }
-
-    return {article};
+    const updated = await this.articleRepository.findOne({ where: { slug } });
+    return { comments: updated.comments };
   }
 
   async findComments(slug: string): Promise<CommentsRO> {
-    const article = await this.articleRepository.findOne({slug});
-    return {comments: article.comments};
+    const article = await this.articleRepository.findOne({ where: { slug } });
+    if (!article) throw new NotFoundException("Article not found");
+    return { comments: article.comments };
   }
 
-  async create(userId: number, articleData: CreateArticleDto): Promise<ArticleEntity> {
+  async favorite(userId: number, slug: string): Promise<ArticleRO> {
+    const article = await this.articleRepository.findOneBy({ slug });
+    if (!article) throw new NotFoundException("Article not found");
 
-    let article = new ArticleEntity();
-    article.title = articleData.title;
-    article.description = articleData.description;
-    article.slug = this.slugify(articleData.title);
-    article.tagList = articleData.tagList || [];
-    article.comments = [];
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ["favorites"],
+    });
 
-    const newArticle = await this.articleRepository.save(article);
+    const alreadyFavorited = user.favorites.some((a) => a.id === article.id);
+    if (!alreadyFavorited) {
+      user.favorites.push(article);
+      article.favoriteCount++;
+      await this.userRepository.save(user);
+      await this.articleRepository.save(article);
+    }
 
-    const author = await this.userRepository.findOne({ where: { id: userId }, relations: ['articles'] });
-    author.articles.push(article);
-
-    await this.userRepository.save(author);
-
-    return newArticle;
-
+    return { article };
   }
 
-  async update(slug: string, articleData: any): Promise<ArticleRO> {
-    let toUpdate = await this.articleRepository.findOne({ slug: slug});
-    let updated = Object.assign(toUpdate, articleData);
-    const article = await this.articleRepository.save(updated);
-    return {article};
+  async unFavorite(userId: number, slug: string): Promise<ArticleRO> {
+    const article = await this.articleRepository.findOneBy({ slug });
+    if (!article) throw new NotFoundException("Article not found");
+
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ["favorites"],
+    });
+
+    const idx = user.favorites.findIndex((a) => a.id === article.id);
+    if (idx >= 0) {
+      user.favorites.splice(idx, 1);
+      article.favoriteCount = Math.max(0, article.favoriteCount - 1);
+      await this.userRepository.save(user);
+      await this.articleRepository.save(article);
+    }
+
+    return { article };
   }
 
-  async delete(slug: string): Promise<DeleteResult> {
-    return await this.articleRepository.delete({ slug: slug});
-  }
-
-  slugify(title: string) {
-    return slug(title, {lower: true}) + '-' + (Math.random() * Math.pow(36, 6) | 0).toString(36)
+  private generateSlug(title: string): string {
+    const randomSuffix = ((Math.random() * Math.pow(36, 6)) | 0).toString(36);
+    return `${slugify(title, { lower: true })}-${randomSuffix}`;
   }
 }

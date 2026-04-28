@@ -1,11 +1,15 @@
-import { HttpStatus, Injectable} from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { UserEntity } from '../user/user.entity';
-import { DeepPartial } from 'typeorm/common/DeepPartial';
-import { ProfileRO, ProfileData } from './profile.interface';
-import {FollowsEntity} from "./follows.entity";
-import {HttpException} from "@nestjs/common/exceptions/http.exception";
+import {
+  HttpStatus,
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { UserEntity } from "../user/user.entity";
+import { ProfileRO, ProfileData } from "./profile.interface";
+import { FollowsEntity } from "./follows.entity";
 
 @Injectable()
 export class ProfileService {
@@ -13,92 +17,112 @@ export class ProfileService {
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
     @InjectRepository(FollowsEntity)
-    private readonly followsRepository: Repository<FollowsEntity>
+    private readonly followsRepository: Repository<FollowsEntity>,
   ) {}
 
-  async findAll(): Promise<UserEntity[]> {
-    return await this.userRepository.find();
-  }
+  async findProfile(
+    currentUserId: number,
+    username: string,
+  ): Promise<ProfileRO> {
+    const targetUser = await this.userRepository.findOne({
+      where: { username },
+    });
 
-  async findOne(options?: DeepPartial<UserEntity>): Promise<ProfileRO> {
-    const user = await this.userRepository.findOne(options);
-    delete user.id;
-    if (user) delete user.password;
-    return {profile: user};
-  }
-
-  async findProfile(id: number, followingUsername: string): Promise<ProfileRO> {
-    const _profile = await this.userRepository.findOne( {username: followingUsername});
-
-    if(!_profile) return;
-
-    let profile: ProfileData = {
-      username: _profile.username,
-      bio: _profile.bio,
-      image: _profile.image
-    };
-
-    const follows = await this.followsRepository.findOne( {followerId: id, followingId: _profile.id});
-
-    if (id) {
-      profile.following = !!follows;
+    if (!targetUser) {
+      throw new NotFoundException(`User "${username}" not found.`);
     }
 
-    return {profile};
+    const profile: ProfileData = {
+      username: targetUser.username,
+      bio: targetUser.bio,
+      image: targetUser.image,
+      following: false,
+    };
+
+    // Only check follow status if a user is logged in
+    if (currentUserId) {
+      const followRecord = await this.followsRepository.findOne({
+        where: { followerId: currentUserId, followingId: targetUser.id },
+      });
+      profile.following = !!followRecord;
+    }
+
+    return { profile };
   }
 
   async follow(followerEmail: string, username: string): Promise<ProfileRO> {
-    if (!followerEmail || !username) {
-      throw new HttpException('Follower email and username not provided.', HttpStatus.BAD_REQUEST);
+    const [followerUser, followingUser] = await Promise.all([
+      this.userRepository.findOne({ where: { email: followerEmail } }),
+      this.userRepository.findOne({ where: { username } }),
+    ]);
+
+    if (!followerUser) {
+      throw new NotFoundException("Authenticated user not found.");
     }
 
-    const followingUser = await this.userRepository.findOne({username});
-    const followerUser = await this.userRepository.findOne({email: followerEmail});
-
-    if (followingUser.email === followerEmail) {
-      throw new HttpException('FollowerEmail and FollowingId cannot be equal.', HttpStatus.BAD_REQUEST);
+    if (!followingUser) {
+      throw new NotFoundException(`User "${username}" not found.`);
     }
 
-    const _follows = await this.followsRepository.findOne( {followerId: followerUser.id, followingId: followingUser.id});
-
-    if (!_follows) {
-      const follows = new FollowsEntity();
-      follows.followerId = followerUser.id;
-      follows.followingId = followingUser.id;
-      await this.followsRepository.save(follows);
+    if (followerUser.id === followingUser.id) {
+      throw new BadRequestException("You cannot follow yourself.");
     }
 
-    let profile: ProfileData = {
+    const alreadyFollowing = await this.followsRepository.findOne({
+      where: { followerId: followerUser.id, followingId: followingUser.id },
+    });
+
+    if (alreadyFollowing) {
+      throw new ConflictException(`You are already following "${username}".`);
+    }
+
+    await this.followsRepository.save(
+      this.followsRepository.create({
+        followerId: followerUser.id,
+        followingId: followingUser.id,
+      }),
+    );
+
+    const profile: ProfileData = {
       username: followingUser.username,
       bio: followingUser.bio,
       image: followingUser.image,
-      following: true
+      following: true,
     };
 
-    return {profile};
+    return { profile };
   }
 
   async unFollow(followerId: number, username: string): Promise<ProfileRO> {
-    if (!followerId || !username) {
-      throw new HttpException('FollowerId and username not provided.', HttpStatus.BAD_REQUEST);
-    }
+    const followingUser = await this.userRepository.findOne({
+      where: { username },
+    });
 
-    const followingUser = await this.userRepository.findOne({username});
+    if (!followingUser) {
+      throw new NotFoundException(`User "${username}" not found.`);
+    }
 
     if (followingUser.id === followerId) {
-      throw new HttpException('FollowerId and FollowingId cannot be equal.', HttpStatus.BAD_REQUEST);
+      throw new BadRequestException("You cannot unfollow yourself.");
     }
-    const followingId = followingUser.id;
-    await this.followsRepository.delete({followerId, followingId});
 
-    let profile: ProfileData = {
+    const followRecord = await this.followsRepository.findOne({
+      where: { followerId, followingId: followingUser.id },
+    });
+
+    if (!followRecord) {
+      throw new BadRequestException(`You are not following "${username}".`);
+    }
+
+    await this.followsRepository.remove(followRecord);
+
+    const profile: ProfileData = {
       username: followingUser.username,
       bio: followingUser.bio,
       image: followingUser.image,
-      following: false
+      following: false,
     };
 
-    return {profile};
+    return { profile };
   }
-
 }
