@@ -1,6 +1,6 @@
 # API — NestJS
 
-A production-ready REST API built with **NestJS**, **TypeORM**, and **PostgreSQL**,(https://github.com/gothinkster/realworld) spec. Features JWT authentication, Swagger docs, argon2 password hashing, and full CRUD for articles, comments, tags, and user profiles.
+A production-ready REST API built with **NestJS**, **TypeORM**, and **PostgreSQL**. Features JWT authentication, Swagger docs, argon2 password hashing, and full CRUD for articles, comments, tags, and user profiles.
 
 ---
 
@@ -65,43 +65,38 @@ src/
 - PostgreSQL >= 14
 - npm or yarn
 
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/your-username/realworld-nestjs.git
-cd realworld-nestjs
-```
+````
 
 ### 2. Install dependencies
 
 ```bash
 npm install
-```
+````
 
 ### 3. Configure environment variables
 
 Copy the example file and fill in your values:
 
 ```bash
-cp .env.example .env
+
 ```
 
-| Variable          | Description                  | Default       |
-| ----------------- | ---------------------------- | ------------- |
-| `PORT`            | Port the server listens on   | `3000`        |
-| `NODE_ENV`        | `development` / `production` | `development` |
-| `DB_HOST`         | PostgreSQL host              | `localhost`   |
-| `DB_PORT`         | PostgreSQL port              | `5432`        |
-| `DB_USER`         | PostgreSQL username          | `postgres`    |
-| `DB_PASS`         | PostgreSQL password          | _(required)_  |
-| `DB_NAME`         | Database name                | `realworld`   |
-| `JWT_SECRET`      | Secret key for signing JWTs  | _(required)_  |
-| `ALLOWED_ORIGINS` | Comma-separated CORS origins | `*`           |
+| Variable          | Description                  | Default         |
+| ----------------- | ---------------------------- | --------------- |
+| `PORT`            | Port the server listens on   | `3000`          |
+| `NODE_ENV`        | `development` / `production` | `development`   |
+| `DB_HOST`         | PostgreSQL host              | `localhost`     |
+| `DB_PORT`         | PostgreSQL port              | `5432`          |
+| `DB_USER`         | PostgreSQL username          | `postgres`      |
+| `DB_PASS`         | PostgreSQL password          | _(required)_    |
+| `DB_NAME`         | Database name                | `mediumclonev2` |
+| `JWT_SECRET`      | Secret key for signing JWTs  | _(required)_    |
+| `ALLOWED_ORIGINS` | Comma-separated CORS origins | `*`             |
 
 ### 4. Create the database
 
 ```bash
-psql -U postgres -c "CREATE DATABASE realworld;"
+psql -U postgres -c "CREATE DATABASE mediumclonev2;"
 ```
 
 ### 5. Run the application
@@ -210,9 +205,9 @@ DB_HOST=localhost
 DB_PORT=5432
 DB_USER=postgres
 DB_PASS=yourpassword
-DB_NAME=realworld
+DB_NAME=mediumclonev2
 
-JWT_SECRET=your-super-secret-key-change-this
+JWT_SECRET=secret
 
 ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
 ```
