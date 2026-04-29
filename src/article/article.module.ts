@@ -1,9 +1,4 @@
-import {
-  MiddlewareConsumer,
-  Module,
-  NestModule,
-  RequestMethod,
-} from "@nestjs/common";
+import { Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 
 import { ArticleController } from "./article.controller";
@@ -13,7 +8,7 @@ import { Comment } from "./comment.entity";
 import { UserEntity } from "../user/user.entity";
 import { FollowsEntity } from "../profile/follows.entity";
 import { UserModule } from "../user/user.module";
-import { AuthMiddleware } from "../user/auth.middleware";
+import { TagEntity } from "../tag/tag.entity";
 
 @Module({
   imports: [
@@ -22,25 +17,11 @@ import { AuthMiddleware } from "../user/auth.middleware";
       Comment,
       UserEntity,
       FollowsEntity,
+      TagEntity,
     ]),
     UserModule,
   ],
   providers: [ArticleService],
   controllers: [ArticleController],
 })
-export class ArticleModule implements NestModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer
-      .apply(AuthMiddleware)
-      .forRoutes(
-        { path: "articles/feed", method: RequestMethod.GET },
-        { path: "articles", method: RequestMethod.POST },
-        { path: "articles/:slug", method: RequestMethod.PUT },
-        { path: "articles/:slug", method: RequestMethod.DELETE },
-        { path: "articles/:slug/comments", method: RequestMethod.POST },
-        { path: "articles/:slug/comments/:id", method: RequestMethod.DELETE },
-        { path: "articles/:slug/favorite", method: RequestMethod.POST },
-        { path: "articles/:slug/favorite", method: RequestMethod.DELETE },
-      );
-  }
-}
+export class ArticleModule {}

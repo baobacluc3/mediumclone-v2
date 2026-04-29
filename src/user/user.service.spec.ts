@@ -1,5 +1,6 @@
 import { ConflictException, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { JwtService } from "@nestjs/jwt";
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import * as argon2 from "argon2";
@@ -47,6 +48,7 @@ describe("UserService", () => {
   let service: UserService;
   let repo: jest.Mocked<Repository<UserEntity>>;
   let configService: { getOrThrow: jest.Mock };
+  let jwtService: { sign: jest.Mock };
   let queryBuilder: {
     addSelect: jest.Mock;
     where: jest.Mock;
@@ -57,11 +59,15 @@ describe("UserService", () => {
     configService = {
       getOrThrow: jest.fn().mockReturnValue("test-secret"),
     };
+    jwtService = {
+      sign: jest.fn().mockReturnValue("signed-token"),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UserService,
         { provide: ConfigService, useValue: configService },
+        { provide: JwtService, useValue: jwtService },
         { provide: getRepositoryToken(UserEntity), useFactory: mockRepository },
       ],
     }).compile();

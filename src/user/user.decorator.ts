@@ -1,37 +1,13 @@
 import { createParamDecorator, ExecutionContext } from "@nestjs/common";
-import * as jwt from "jsonwebtoken";
-
-type JwtUserPayload = {
-  id: number;
-  username: string;
-  email: string;
-};
-
-function getJwtSecret(): string | null {
-  return process.env.JWT_SECRET ?? null;
-}
+import { AuthenticatedUser } from "./auth.types";
 
 export const User = createParamDecorator((data: any, ctx: ExecutionContext) => {
-  const req = ctx.switchToHttp().getRequest();
-  if (req.user) {
-    return data ? req.user[data] : req.user;
-  }
+  const req = ctx.switchToHttp().getRequest<{ user?: AuthenticatedUser }>();
+  const user = req.user;
 
-  const authHeader = req.headers.authorization as string | undefined;
-  if (!authHeader?.startsWith("Bearer ")) {
+  if (!user) {
     return undefined;
   }
 
-  const secret = getJwtSecret();
-  if (!secret) {
-    return undefined;
-  }
-
-  try {
-    const token = authHeader.split(" ")[1];
-    const decoded = jwt.verify(token, secret) as JwtUserPayload;
-    return data ? decoded[data] : decoded;
-  } catch {
-    return undefined;
-  }
+  return data ? user[data] : user;
 });

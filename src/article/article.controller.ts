@@ -10,6 +10,7 @@ import {
   ParseIntPipe,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from "@nestjs/common";
 import {
   ApiBearerAuth,
@@ -22,6 +23,7 @@ import { ArticleService } from "./article.service";
 import { CreateArticleDto, CreateCommentDto, ArticleQueryDto } from "./dto";
 import { ArticlesRO, ArticleRO, CommentsRO } from "./article.interface";
 import { User } from "../user/user.decorator";
+import { JwtAuthGuard } from "../user/jwt-auth.guard";
 
 @ApiBearerAuth()
 @ApiTags("articles")
@@ -42,6 +44,7 @@ export class ArticleController {
   @ApiOperation({ summary: "Get articles from followed users" })
   @ApiResponse({ status: 200, description: "Returns feed articles." })
   @Get("feed")
+  @UseGuards(JwtAuthGuard)
   getFeed(
     @User("id") userId: number,
     @Query() query: ArticleQueryDto,
@@ -67,6 +70,7 @@ export class ArticleController {
   @ApiOperation({ summary: "Create a new article" })
   @ApiResponse({ status: 201, description: "Article created successfully." })
   @Post()
+  @UseGuards(JwtAuthGuard)
   create(
     @User("id") userId: number,
     @Body("article") dto: CreateArticleDto,
@@ -81,6 +85,7 @@ export class ArticleController {
     description: "Forbidden – not the article author.",
   })
   @Put(":slug")
+  @UseGuards(JwtAuthGuard)
   update(
     @User("id") userId: number,
     @Param("slug") slug: string,
@@ -97,6 +102,7 @@ export class ArticleController {
   })
   @HttpCode(HttpStatus.NO_CONTENT)
   @Delete(":slug")
+  @UseGuards(JwtAuthGuard)
   delete(@User("id") userId: number, @Param("slug") slug: string) {
     return this.articleService.delete(slug, userId);
   }
@@ -104,6 +110,7 @@ export class ArticleController {
   @ApiOperation({ summary: "Add a comment to an article" })
   @ApiResponse({ status: 201, description: "Comment created." })
   @Post(":slug/comments")
+  @UseGuards(JwtAuthGuard)
   createComment(
     @User("id") userId: number,
     @Param("slug") slug: string,
@@ -116,6 +123,7 @@ export class ArticleController {
   @ApiResponse({ status: 204, description: "Comment deleted." })
   @HttpCode(HttpStatus.NO_CONTENT)
   @Delete(":slug/comments/:id")
+  @UseGuards(JwtAuthGuard)
   deleteComment(
     @User("id") userId: number,
     @Param("slug") slug: string,
@@ -126,6 +134,7 @@ export class ArticleController {
 
   @ApiOperation({ summary: "Favorite an article" })
   @Post(":slug/favorite")
+  @UseGuards(JwtAuthGuard)
   favorite(
     @User("id") userId: number,
     @Param("slug") slug: string,
@@ -136,6 +145,7 @@ export class ArticleController {
   @ApiOperation({ summary: "Unfavorite an article" })
   @HttpCode(HttpStatus.OK)
   @Delete(":slug/favorite")
+  @UseGuards(JwtAuthGuard)
   unFavorite(
     @User("id") userId: number,
     @Param("slug") slug: string,

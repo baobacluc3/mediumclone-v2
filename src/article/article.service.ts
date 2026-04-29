@@ -1,18 +1,25 @@
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
   ForbiddenException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { DataSource, DeleteResult, Repository } from "typeorm";
+import { DataSource, DeleteResult, In, Repository } from "typeorm";
 import slugify from "slug";
 
 import { ArticleEntity } from "./article.entity";
 import { Comment } from "./comment.entity";
 import { UserEntity } from "../user/user.entity";
 import { FollowsEntity } from "../profile/follows.entity";
+import { TagEntity } from "../tag/tag.entity";
 import { CreateArticleDto, CreateCommentDto, ArticleQueryDto } from "./dto";
-import { ArticleRO, ArticlesRO, CommentsRO } from "./article.interface";
+import {
+  ArticleResponse,
+  ArticleRO,
+  ArticlesRO,
+  CommentsRO,
+} from "./article.interface";
 
 @Injectable()
 export class ArticleService {
@@ -25,6 +32,8 @@ export class ArticleService {
     private readonly userRepository: Repository<UserEntity>,
     @InjectRepository(FollowsEntity)
     private readonly followsRepository: Repository<FollowsEntity>,
+    @InjectRepository(TagEntity)
+    private readonly tagRepository: Repository<TagEntity>,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -33,10 +42,13 @@ export class ArticleService {
       .getRepository(ArticleEntity)
       .createQueryBuilder("article")
       .leftJoinAndSelect("article.author", "author")
+      .leftJoinAndSelect("article.tags", "tags")
       .orderBy("article.createdAt", "DESC");
 
     if (query.tag) {
-      qb.andWhere("article.tagList LIKE :tag", { tag: `%${query.tag}%` });
+      qb.innerJoin("article.tags", "filterTag", "filterTag.name = :tag", {
+        tag: query.tag,
+      });
     }
 
     if (query.author) {
@@ -62,7 +74,10 @@ export class ArticleService {
     qb.skip(query.offset).take(query.limit);
     const articles = await qb.getMany();
 
-    return { articles, articlesCount };
+    return {
+      articles: articles.map((article) => this.toArticleResponse(article)),
+      articlesCount,
+    };
   }
 
   async findFeed(userId: number, query: ArticleQueryDto): Promise<ArticlesRO> {
@@ -78,6 +93,7 @@ export class ArticleService {
       .getRepository(ArticleEntity)
       .createQueryBuilder("article")
       .leftJoinAndSelect("article.author", "author")
+      .leftJoinAndSelect("article.tags", "tags")
       .where("article.authorId IN (:...ids)", { ids })
       .orderBy("article.createdAt", "DESC");
 
@@ -85,20 +101,23 @@ export class ArticleService {
     qb.skip(query.offset).take(query.limit);
     const articles = await qb.getMany();
 
-    return { articles, articlesCount };
+    return {
+      articles: articles.map((article) => this.toArticleResponse(article)),
+      articlesCount,
+    };
   }
 
   async findOne(slug: string): Promise<ArticleRO> {
     const article = await this.articleRepository.findOne({
       where: { slug },
-      relations: ["author"],
+      relations: ["author", "tags"],
     });
 
     if (!article) {
       throw new NotFoundException(`Article with slug "${slug}" not found`);
     }
 
-    return { article };
+    return { article: this.toArticleResponse(article) };
   }
 
   async create(userId: number, dto: CreateArticleDto): Promise<ArticleRO> {
@@ -109,16 +128,19 @@ export class ArticleService {
 
     if (!author) throw new NotFoundException("User not found");
 
+    const tags = await this.resolveTags(dto.tagList ?? []);
     const article = this.articleRepository.create({
-      ...dto,
       slug: this.generateSlug(dto.title),
-      tagList: dto.tagList ?? [],
+      title: dto.title,
+      description: dto.description,
+      body: dto.body,
+      tags,
       comments: [],
       author,
     });
 
     const saved = await this.articleRepository.save(article);
-    return { article: saved };
+    return { article: this.toArticleResponse(saved) };
   }
 
   async update(
@@ -128,7 +150,7 @@ export class ArticleService {
   ): Promise<ArticleRO> {
     const article = await this.articleRepository.findOne({
       where: { slug },
-      relations: ["author"],
+      relations: ["author", "tags"],
     });
 
     if (!article) throw new NotFoundException("Article not found");
@@ -139,10 +161,16 @@ export class ArticleService {
       article.slug = this.generateSlug(dto.title);
     }
 
-    Object.assign(article, dto);
+    const { tagList, ...articleUpdates } = dto;
+    Object.assign(article, articleUpdates);
+
+    if (tagList) {
+      article.tags = await this.resolveTags(tagList);
+    }
+
     const updated = await this.articleRepository.save(article);
 
-    return { article: updated };
+    return { article: this.toArticleResponse(updated) };
   }
 
   async delete(slug: string, userId: number): Promise<DeleteResult> {
@@ -167,6 +195,7 @@ export class ArticleService {
     if (!article) throw new NotFoundException("Article not found");
 
     const author = await this.userRepository.findOneBy({ id: userId });
+    if (!author) throw new NotFoundException("User not found");
 
     const comment = this.commentRepository.create({
       body: dto.body,
@@ -175,9 +204,16 @@ export class ArticleService {
     });
 
     await this.commentRepository.save(comment);
-    const updated = await this.articleRepository.findOne({ where: { slug } });
+    const updated = await this.articleRepository.findOne({
+      where: { slug },
+      relations: ["author", "tags"],
+    });
 
-    return { article: updated };
+    if (!updated) {
+      throw new NotFoundException("Article not found after comment creation");
+    }
+
+    return { article: this.toArticleResponse(updated) };
   }
 
   async deleteComment(
@@ -200,6 +236,8 @@ export class ArticleService {
     await this.commentRepository.delete(commentId);
 
     const updated = await this.articleRepository.findOne({ where: { slug } });
+    if (!updated) throw new NotFoundException("Article not found");
+
     return { comments: updated.comments };
   }
 
@@ -210,13 +248,17 @@ export class ArticleService {
   }
 
   async favorite(userId: number, slug: string): Promise<ArticleRO> {
-    const article = await this.articleRepository.findOneBy({ slug });
+    const article = await this.articleRepository.findOne({
+      where: { slug },
+      relations: ["author", "tags"],
+    });
     if (!article) throw new NotFoundException("Article not found");
 
     const user = await this.userRepository.findOne({
       where: { id: userId },
       relations: ["favorites"],
     });
+    if (!user) throw new NotFoundException("User not found");
 
     const alreadyFavorited = user.favorites.some((a) => a.id === article.id);
     if (!alreadyFavorited) {
@@ -226,17 +268,21 @@ export class ArticleService {
       await this.articleRepository.save(article);
     }
 
-    return { article };
+    return { article: this.toArticleResponse(article) };
   }
 
   async unFavorite(userId: number, slug: string): Promise<ArticleRO> {
-    const article = await this.articleRepository.findOneBy({ slug });
+    const article = await this.articleRepository.findOne({
+      where: { slug },
+      relations: ["author", "tags"],
+    });
     if (!article) throw new NotFoundException("Article not found");
 
     const user = await this.userRepository.findOne({
       where: { id: userId },
       relations: ["favorites"],
     });
+    if (!user) throw new NotFoundException("User not found");
 
     const idx = user.favorites.findIndex((a) => a.id === article.id);
     if (idx >= 0) {
@@ -246,7 +292,55 @@ export class ArticleService {
       await this.articleRepository.save(article);
     }
 
-    return { article };
+    return { article: this.toArticleResponse(article) };
+  }
+
+  private async resolveTags(tagList: string[]): Promise<TagEntity[]> {
+    const tagNames = this.normalizeTagList(tagList);
+
+    if (!tagNames.length) {
+      return [];
+    }
+
+    const existingTags = await this.tagRepository.findBy({
+      name: In(tagNames),
+    });
+    const existingNames = new Set(existingTags.map((tag) => tag.name));
+    const newTags = tagNames
+      .filter((name) => !existingNames.has(name))
+      .map((name) => this.tagRepository.create({ name }));
+
+    const savedNewTags = newTags.length
+      ? await this.tagRepository.save(newTags)
+      : [];
+
+    const tagsByName = new Map(
+      [...existingTags, ...savedNewTags].map((tag) => [tag.name, tag]),
+    );
+
+    return tagNames.map((name) => tagsByName.get(name)).filter(Boolean);
+  }
+
+  private normalizeTagList(tagList: string[]): string[] {
+    const normalized = tagList.map((tag) => tag.trim()).filter(Boolean);
+
+    const invalidTag = normalized.find((tag) => tag.length > 50);
+    if (invalidTag) {
+      throw new BadRequestException(
+        `Tag "${invalidTag}" exceeds the 50 character limit.`,
+      );
+    }
+
+    return [...new Set(normalized)];
+  }
+
+  private toArticleResponse(article: ArticleEntity): ArticleResponse {
+    const { tags, ...articleData } = article;
+
+    return {
+      ...articleData,
+      tagList: (tags ?? []).map((tag) => tag.name),
+    } as ArticleResponse;
   }
 
   private generateSlug(title: string): string {

@@ -11,6 +11,8 @@ import {
   Post,
   Put,
   UnauthorizedException,
+  UseGuards,
+  ForbiddenException,
 } from "@nestjs/common";
 import {
   ApiBearerAuth,
@@ -24,6 +26,7 @@ import { CreateUserDto, LoginUserDto, UpdateUserDto } from "./dto";
 import { UserRO } from "./user.interface";
 import { UserService } from "./user.service";
 import { User } from "./user.decorator";
+import { JwtAuthGuard } from "./jwt-auth.guard";
 
 @ApiBearerAuth()
 @ApiTags("Users")
@@ -37,6 +40,7 @@ export class UserController {
   @ApiOperation({ summary: "Get current authenticated user" })
   @ApiResponse({ status: 200, description: "Returns the logged-in user." })
   @ApiResponse({ status: 401, description: "Unauthorized." })
+  @UseGuards(JwtAuthGuard)
   async findMe(@User("email") email: string): Promise<UserRO> {
     return this.userService.findByEmail(email);
   }
@@ -46,6 +50,7 @@ export class UserController {
   @ApiBody({ type: UpdateUserDto })
   @ApiResponse({ status: 200, description: "User updated successfully." })
   @ApiResponse({ status: 400, description: "Validation failed." })
+  @UseGuards(JwtAuthGuard)
   async update(
     @User("id") userId: number,
     @Body("user") dto: UpdateUserDto,
@@ -90,7 +95,15 @@ export class UserController {
   @ApiParam({ name: "id", type: Number, description: "User ID" })
   @ApiResponse({ status: 204, description: "User deleted successfully." })
   @ApiResponse({ status: 404, description: "User not found." })
-  async delete(@Param("id", ParseIntPipe) id: number): Promise<void> {
+  @UseGuards(JwtAuthGuard)
+  async delete(
+    @User("id") currentUserId: number,
+    @Param("id", ParseIntPipe) id: number,
+  ): Promise<void> {
+    if (currentUserId !== id) {
+      throw new ForbiddenException("You can only delete your own account.");
+    }
+
     await this.userService.delete(id);
   }
 }

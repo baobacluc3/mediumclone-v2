@@ -29,5 +29,6 @@ export class CreateArticleDto {
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
+  @MaxLength(50, { each: true })
   readonly tagList: string[] = [];
 }

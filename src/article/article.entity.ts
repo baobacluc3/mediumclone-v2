@@ -4,11 +4,14 @@ import {
   Column,
   ManyToOne,
   OneToMany,
+  ManyToMany,
   JoinColumn,
+  JoinTable,
   CreateDateColumn,
   UpdateDateColumn,
 } from "typeorm";
 import { UserEntity } from "../user/user.entity";
+import { TagEntity } from "../tag/tag.entity";
 import { Comment } from "./comment.entity";
 
 @Entity("articles")
@@ -28,8 +31,13 @@ export class ArticleEntity {
   @Column({ type: "text", default: "" })
   body: string;
 
-  @Column("simple-array", { default: "" })
-  tagList: string[];
+  @ManyToMany(() => TagEntity)
+  @JoinTable({
+    name: "article_tags",
+    joinColumn: { name: "articleId", referencedColumnName: "id" },
+    inverseJoinColumn: { name: "tagId", referencedColumnName: "id" },
+  })
+  tags: TagEntity[];
 
   @Column({ default: 0 })
   favoriteCount: number;

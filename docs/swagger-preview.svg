@@ -1,0 +1,30 @@
+<svg width="1280" height="720" viewBox="0 0 1280 720" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Publishing API Swagger Preview</title>
+  <desc id="desc">Preview of the Publishing API documentation with grouped users, articles, profiles, tags, and health endpoints.</desc>
+  <rect width="1280" height="720" fill="#f6f8fb"/>
+  <rect x="60" y="48" width="1160" height="624" rx="8" fill="#ffffff" stroke="#d8dee8"/>
+  <rect x="60" y="48" width="1160" height="72" rx="8" fill="#162033"/>
+  <text x="96" y="94" fill="#ffffff" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="700">Publishing API</text>
+  <text x="1010" y="92" fill="#cbd5e1" font-family="Segoe UI, Arial, sans-serif" font-size="18">/api/v1</text>
+  <rect x="96" y="152" width="520" height="84" rx="6" fill="#eef6ff" stroke="#93c5fd"/>
+  <text x="126" y="185" fill="#1d4ed8" font-family="Consolas, monospace" font-size="18" font-weight="700">POST /users/login</text>
+  <text x="126" y="213" fill="#334155" font-family="Segoe UI, Arial, sans-serif" font-size="17">JWT login with argon2 password verification</text>
+  <rect x="664" y="152" width="520" height="84" rx="6" fill="#f0fdf4" stroke="#86efac"/>
+  <text x="694" y="185" fill="#15803d" font-family="Consolas, monospace" font-size="18" font-weight="700">GET /articles</text>
+  <text x="694" y="213" fill="#334155" font-family="Segoe UI, Arial, sans-serif" font-size="17">Paginated feed with author, tag, and favorite filters</text>
+  <rect x="96" y="268" width="520" height="84" rx="6" fill="#fff7ed" stroke="#fdba74"/>
+  <text x="126" y="301" fill="#c2410c" font-family="Consolas, monospace" font-size="18" font-weight="700">POST /articles/:slug/comments</text>
+  <text x="126" y="329" fill="#334155" font-family="Segoe UI, Arial, sans-serif" font-size="17">Protected comments with Passport JWT guard</text>
+  <rect x="664" y="268" width="520" height="84" rx="6" fill="#f8fafc" stroke="#cbd5e1"/>
+  <text x="694" y="301" fill="#475569" font-family="Consolas, monospace" font-size="18" font-weight="700">POST /profiles/:username/follow</text>
+  <text x="694" y="329" fill="#334155" font-family="Segoe UI, Arial, sans-serif" font-size="17">Follow graph backed by a unique join table</text>
+  <rect x="96" y="384" width="520" height="84" rx="6" fill="#fdf2f8" stroke="#f9a8d4"/>
+  <text x="126" y="417" fill="#be185d" font-family="Consolas, monospace" font-size="18" font-weight="700">GET /tags</text>
+  <text x="126" y="445" fill="#334155" font-family="Segoe UI, Arial, sans-serif" font-size="17">Normalized tags with search, pagination, and soft delete</text>
+  <rect x="664" y="384" width="520" height="84" rx="6" fill="#ecfeff" stroke="#67e8f9"/>
+  <text x="694" y="417" fill="#0e7490" font-family="Consolas, monospace" font-size="18" font-weight="700">GET /health</text>
+  <text x="694" y="445" fill="#334155" font-family="Segoe UI, Arial, sans-serif" font-size="17">Container health endpoint for deployment checks</text>
+  <rect x="96" y="532" width="1088" height="76" rx="6" fill="#f8fafc" stroke="#d8dee8"/>
+  <text x="126" y="565" fill="#0f172a" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="700">Runtime safeguards</text>
+  <text x="126" y="594" fill="#475569" font-family="Segoe UI, Arial, sans-serif" font-size="17">ValidationPipe, global exception filter, throttling, migrations, CORS, and Swagger bearer auth.</text>
+</svg>

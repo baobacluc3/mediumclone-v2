@@ -6,6 +6,7 @@ import {
   Controller,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from "@nestjs/common";
 import {
   ApiBearerAuth,
@@ -21,6 +22,7 @@ import {
 import { ProfileService } from "./profile.service";
 import { ProfileRO } from "./profile.interface";
 import { User } from "../user/user.decorator";
+import { JwtAuthGuard, OptionalJwtAuthGuard } from "../user/jwt-auth.guard";
 
 @ApiBearerAuth()
 @ApiTags("Profiles")
@@ -37,6 +39,7 @@ export class ProfileController {
     type: ProfileRO,
   })
   @ApiNotFoundResponse({ description: "User not found." })
+  @UseGuards(OptionalJwtAuthGuard)
   async getProfile(
     @User("id") userId: number,
     @Param("username") username: string,
@@ -57,6 +60,7 @@ export class ProfileController {
   @ApiBadRequestResponse({ description: "Cannot follow yourself." })
   @ApiConflictResponse({ description: "Already following this user." })
   @ApiUnauthorizedResponse({ description: "Unauthorized." })
+  @UseGuards(JwtAuthGuard)
   async follow(
     @User("email") email: string,
     @Param("username") username: string,
@@ -78,6 +82,7 @@ export class ProfileController {
     description: "Cannot unfollow yourself or not currently following.",
   })
   @ApiUnauthorizedResponse({ description: "Unauthorized." })
+  @UseGuards(JwtAuthGuard)
   async unFollow(
     @User("id") userId: number,
     @Param("username") username: string,

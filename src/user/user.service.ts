@@ -4,10 +4,9 @@ import {
   Logger,
   NotFoundException,
 } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
+import { JwtService } from "@nestjs/jwt";
 import { InjectRepository } from "@nestjs/typeorm";
 import * as argon2 from "argon2";
-import * as jwt from "jsonwebtoken";
 import { Repository } from "typeorm";
 import { CreateUserDto, LoginUserDto, UpdateUserDto } from "./dto";
 import { UserEntity } from "./user.entity";
@@ -20,7 +19,7 @@ export class UserService {
   constructor(
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
-    private readonly configService: ConfigService,
+    private readonly jwtService: JwtService,
   ) {}
 
   async findOne({ email, password }: LoginUserDto): Promise<UserEntity | null> {
@@ -43,13 +42,18 @@ export class UserService {
   }
 
   async findById(id: number): Promise<UserRO> {
+    const user = await this.findEntityById(id);
+    return this.buildUserRO(user);
+  }
+
+  async findEntityById(id: number): Promise<UserEntity> {
     const user = await this.userRepository.findOne({ where: { id } });
 
     if (!user) {
       throw new NotFoundException(`User #${id} not found`);
     }
 
-    return this.buildUserRO(user);
+    return user;
   }
 
   async findByEmail(email: string): Promise<UserRO> {
@@ -113,13 +117,11 @@ export class UserService {
   }
 
   generateJWT(user: UserEntity): string {
-    const secret = this.configService.getOrThrow<string>("JWT_SECRET");
-
-    return jwt.sign(
-      { id: user.id, username: user.username, email: user.email },
-      secret,
-      { expiresIn: "7d" },
-    );
+    return this.jwtService.sign({
+      id: user.id,
+      username: user.username,
+      email: user.email,
+    });
   }
 
   private buildUserRO(user: UserEntity): UserRO {
