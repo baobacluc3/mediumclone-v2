@@ -1,14 +1,14 @@
+import { IsEmail } from "class-validator";
 import {
-  Entity,
-  PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
-  UpdateDateColumn,
+  Entity,
   JoinTable,
   ManyToMany,
   OneToMany,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from "typeorm";
-import { IsEmail } from "class-validator";
 import { ArticleEntity } from "../article/article.entity";
 
 @Entity("user")
@@ -29,7 +29,7 @@ export class UserEntity {
   @Column({ default: "" })
   image: string;
 
-  @Column({ select: false }) // never leak password in queries by default
+  @Column({ select: false })
   password: string;
 
   @CreateDateColumn()

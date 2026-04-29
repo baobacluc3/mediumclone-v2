@@ -1,7 +1,7 @@
 {
-  "name": "nestjs-realworld-example-app",
+  "name": "publishing-api",
   "version": "3.0.0",
-  "description": "NestJS Real-World Example App — Conduit API spec with JWT auth, TypeORM, and PostgreSQL",
+  "description": "NestJS publishing API with JWT auth, TypeORM, and PostgreSQL",
   "author": "",
   "license": "ISC",
   "main": "dist/main.js",
@@ -20,9 +20,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
-    "test:e2e": "jest --config ./test/jest-e2e.json",
     "lint": "eslint . --fix",
-    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\""
+    "format": "prettier --write \"src/**/*.ts\""
   },
   "dependencies": {
     "@nestjs/common": "^10.4.22",

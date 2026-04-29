@@ -1,14 +1,14 @@
 import {
-  Injectable,
-  NotFoundException,
   BadRequestException,
   ConflictException,
+  Injectable,
+  NotFoundException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { UserEntity } from "../user/user.entity";
-import { ProfileRO, ProfileData } from "./profile.interface";
 import { FollowsEntity } from "./follows.entity";
+import { ProfileData, ProfileRO } from "./profile.interface";
 
 @Injectable()
 export class ProfileService {
@@ -38,7 +38,6 @@ export class ProfileService {
       following: false,
     };
 
-    // Only check follow status if a user is logged in
     if (currentUserId) {
       const followRecord = await this.followsRepository.findOne({
         where: { followerId: currentUserId, followingId: targetUser.id },
@@ -82,14 +81,14 @@ export class ProfileService {
       }),
     );
 
-    const profile: ProfileData = {
-      username: followingUser.username,
-      bio: followingUser.bio,
-      image: followingUser.image,
-      following: true,
+    return {
+      profile: {
+        username: followingUser.username,
+        bio: followingUser.bio,
+        image: followingUser.image,
+        following: true,
+      },
     };
-
-    return { profile };
   }
 
   async unFollow(followerId: number, username: string): Promise<ProfileRO> {
@@ -115,13 +114,13 @@ export class ProfileService {
 
     await this.followsRepository.remove(followRecord);
 
-    const profile: ProfileData = {
-      username: followingUser.username,
-      bio: followingUser.bio,
-      image: followingUser.image,
-      following: false,
+    return {
+      profile: {
+        username: followingUser.username,
+        bio: followingUser.bio,
+        image: followingUser.image,
+        following: false,
+      },
     };
-
-    return { profile };
   }
 }

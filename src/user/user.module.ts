@@ -4,19 +4,15 @@ import {
   NestModule,
   RequestMethod,
 } from "@nestjs/common";
-import { TypeOrmModule } from "@nestjs/typeorm";
 import { ConfigModule } from "@nestjs/config";
-
+import { TypeOrmModule } from "@nestjs/typeorm";
+import { AuthMiddleware } from "./auth.middleware";
 import { UserController } from "./user.controller";
 import { UserEntity } from "./user.entity";
 import { UserService } from "./user.service";
-import { AuthMiddleware } from "./auth.middleware";
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([UserEntity]),
-    ConfigModule, // required by UserService and AuthMiddleware for JWT_SECRET
-  ],
+  imports: [TypeOrmModule.forFeature([UserEntity]), ConfigModule],
   providers: [UserService],
   controllers: [UserController],
   exports: [UserService],

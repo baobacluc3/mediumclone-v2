@@ -1,14 +1,14 @@
 import {
-  Entity,
-  PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
+  Entity,
   Index,
+  PrimaryGeneratedColumn,
   Unique,
 } from "typeorm";
 
 @Entity("follows")
-@Unique(["followerId", "followingId"]) // Prevent duplicate follow records at DB level
+@Unique(["followerId", "followingId"])
 export class FollowsEntity {
   @PrimaryGeneratedColumn()
   id: number;

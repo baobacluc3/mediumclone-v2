@@ -1,14 +1,11 @@
+import { ConflictException, NotFoundException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
-import { NotFoundException, ConflictException } from "@nestjs/common";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-
 import { TagController } from "./tag.controller";
-import { TagService } from "./tag.service";
+import { CreateTagDto, PaginationQueryDto, UpdateTagDto } from "./tag.dto";
 import { TagEntity } from "./tag.entity";
-import { CreateTagDto, UpdateTagDto, PaginationQueryDto } from "./tag.dto";
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+import { TagService } from "./tag.service";
 
 const makeTag = (partial: Partial<TagEntity> = {}): TagEntity => {
   const tag = new TagEntity();
@@ -28,8 +25,6 @@ const mockRepository = () => ({
   softRemove: jest.fn(),
 });
 
-// ─── TagService ───────────────────────────────────────────────────────────────
-
 describe("TagService", () => {
   let service: TagService;
   let repo: jest.Mocked<Repository<TagEntity>>;
@@ -47,8 +42,6 @@ describe("TagService", () => {
   });
 
   afterEach(() => jest.clearAllMocks());
-
-  // ── findAll ──────────────────────────────────────────────────────────────────
 
   describe("findAll", () => {
     it("should return paginated tags", async () => {
@@ -77,11 +70,9 @@ describe("TagService", () => {
       repo.findAndCount.mockResolvedValue([tags, 23]);
 
       const result = await service.findAll({ page: 2, limit: 5 });
-      expect(result.lastPage).toBe(5); // ceil(23/5) = 5
+      expect(result.lastPage).toBe(5);
     });
   });
-
-  // ── findOne ──────────────────────────────────────────────────────────────────
 
   describe("findOne", () => {
     it("should return a tag by id", async () => {
@@ -99,14 +90,12 @@ describe("TagService", () => {
     });
   });
 
-  // ── create ───────────────────────────────────────────────────────────────────
-
   describe("create", () => {
     it("should create and return a new tag", async () => {
       const dto: CreateTagDto = { name: "nestjs", description: "NestJS stuff" };
       const tag = makeTag(dto);
 
-      repo.findOne.mockResolvedValue(null); // no existing tag
+      repo.findOne.mockResolvedValue(null);
       repo.create.mockReturnValue(tag);
       repo.save.mockResolvedValue(tag);
 
@@ -116,7 +105,7 @@ describe("TagService", () => {
     });
 
     it("should throw ConflictException if tag name already exists", async () => {
-      repo.findOne.mockResolvedValue(makeTag()); // name taken
+      repo.findOne.mockResolvedValue(makeTag());
 
       await expect(service.create({ name: "nestjs" })).rejects.toThrow(
         ConflictException,
@@ -125,18 +114,13 @@ describe("TagService", () => {
     });
   });
 
-  // ── update ───────────────────────────────────────────────────────────────────
-
   describe("update", () => {
     it("should update and return the tag", async () => {
       const existing = makeTag();
       const dto: UpdateTagDto = { name: "nestjs-v2" };
       const updated = makeTag({ ...dto });
 
-      repo.findOne
-        .mockResolvedValueOnce(existing) // findOne for id check
-        .mockResolvedValueOnce(null); // assertNameIsUnique → no conflict
-
+      repo.findOne.mockResolvedValueOnce(existing).mockResolvedValueOnce(null);
       repo.save.mockResolvedValue(updated);
 
       const result = await service.update(1, dto);
@@ -151,8 +135,6 @@ describe("TagService", () => {
       );
     });
   });
-
-  // ── remove ───────────────────────────────────────────────────────────────────
 
   describe("remove", () => {
     it("should soft-delete the tag", async () => {
@@ -171,8 +153,6 @@ describe("TagService", () => {
     });
   });
 });
-
-// ─── TagController ────────────────────────────────────────────────────────────
 
 describe("TagController", () => {
   let controller: TagController;
@@ -198,7 +178,7 @@ describe("TagController", () => {
 
   afterEach(() => jest.clearAllMocks());
 
-  it("findAll — delegates to service with query", async () => {
+  it("findAll â€” delegates to service with query", async () => {
     const query: PaginationQueryDto = { page: 1, limit: 10 };
     const payload = { data: [], total: 0, page: 1, lastPage: 0 };
     service.findAll.mockResolvedValue(payload);
@@ -208,7 +188,7 @@ describe("TagController", () => {
     expect(result).toBe(payload);
   });
 
-  it("findOne — delegates to service with parsed id", async () => {
+  it("findOne â€” delegates to service with parsed id", async () => {
     const tag = makeTag();
     service.findOne.mockResolvedValue(tag);
 
@@ -217,7 +197,7 @@ describe("TagController", () => {
     expect(result).toBe(tag);
   });
 
-  it("create — delegates to service with dto", async () => {
+  it("create â€” delegates to service with dto", async () => {
     const dto: CreateTagDto = { name: "nestjs" };
     const tag = makeTag();
     service.create.mockResolvedValue(tag);
@@ -227,7 +207,7 @@ describe("TagController", () => {
     expect(result).toBe(tag);
   });
 
-  it("update — delegates to service with id and dto", async () => {
+  it("update â€” delegates to service with id and dto", async () => {
     const dto: UpdateTagDto = { name: "nestjs-v2" };
     const tag = makeTag({ name: "nestjs-v2" });
     service.update.mockResolvedValue(tag);
@@ -237,7 +217,7 @@ describe("TagController", () => {
     expect(result).toBe(tag);
   });
 
-  it("remove — delegates to service", async () => {
+  it("remove â€” delegates to service", async () => {
     service.remove.mockResolvedValue(undefined);
 
     await controller.remove(1);

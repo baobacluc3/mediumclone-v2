@@ -21,7 +21,7 @@ export function getTypeOrmOptions(
     port: databaseUrl ? undefined : Number(env.DB_PORT ?? "5432"),
     username: databaseUrl ? undefined : (env.DB_USER ?? "postgres"),
     password: databaseUrl ? undefined : (env.DB_PASS ?? ""),
-    database: databaseUrl ? undefined : (env.DB_NAME ?? "realworld"),
+    database: databaseUrl ? undefined : (env.DB_NAME ?? "publishing_api"),
     entities: [__dirname + "/../**/*.entity{.ts,.js}"],
     migrations: [__dirname + "/../migrations/*{.ts,.js}"],
     migrationsTableName: "migrations",

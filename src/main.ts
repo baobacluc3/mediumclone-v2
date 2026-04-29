@@ -1,6 +1,6 @@
-import { NestFactory } from "@nestjs/core";
 import { ValidationPipe, VersioningType, Logger } from "@nestjs/common";
-import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
+import { NestFactory } from "@nestjs/core";
+import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { ApplicationModule } from "./app.module";
 
 async function bootstrap(): Promise<void> {
@@ -19,16 +19,16 @@ async function bootstrap(): Promise<void> {
 
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true, // strip fields không có trong DTO
-      forbidNonWhitelisted: true, // throw error nếu có field lạ
+      whitelist: true,
+      forbidNonWhitelisted: true,
       transform: true,
       transformOptions: { enableImplicitConversion: true },
     }),
   );
 
   const swaggerConfig = new DocumentBuilder()
-    .setTitle("Realworld API")
-    .setDescription("NestJS Realworld Example — modernized")
+    .setTitle("Publishing API")
+    .setDescription("NestJS publishing platform API")
     .setVersion("1.0")
     .addBearerAuth(
       { type: "http", scheme: "bearer", bearerFormat: "JWT" },
@@ -47,7 +47,7 @@ async function bootstrap(): Promise<void> {
 
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
-  logger.log(`Application ready at http://localhost:${port}/api`);
+  logger.log(`Application ready at http://localhost:${port}/api/v1`);
   logger.log(`Swagger docs   at http://localhost:${port}/docs`);
 }
 

@@ -1,11 +1,11 @@
 import {
-  Injectable,
-  NestMiddleware,
   HttpException,
   HttpStatus,
+  Injectable,
+  NestMiddleware,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { Request, Response, NextFunction } from "express";
+import { NextFunction, Request, Response } from "express";
 import * as jwt from "jsonwebtoken";
 import { UserService } from "./user.service";
 
@@ -26,14 +26,15 @@ export class AuthMiddleware implements NestMiddleware {
     const token = authHeader.split(" ")[1];
 
     let decoded: { id: number };
+
     try {
       const secret = this.configService.getOrThrow<string>("JWT_SECRET");
       decoded = jwt.verify(token, secret) as { id: number };
     } catch (err) {
-      // Distinguish expired vs malformed tokens for clearer error messages
       if (err instanceof jwt.TokenExpiredError) {
         throw new HttpException("Token has expired.", HttpStatus.UNAUTHORIZED);
       }
+
       throw new HttpException("Invalid token.", HttpStatus.UNAUTHORIZED);
     }
 

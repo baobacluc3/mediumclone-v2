@@ -1,19 +1,18 @@
 import {
-  Injectable,
-  NotFoundException,
   ConflictException,
+  Injectable,
   Logger,
+  NotFoundException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { ILike, Repository } from "typeorm";
-
-import { TagEntity } from "./tag.entity";
 import {
   CreateTagDto,
-  UpdateTagDto,
-  PaginationQueryDto,
   PaginatedTagsDto,
+  PaginationQueryDto,
+  UpdateTagDto,
 } from "./tag.dto";
+import { TagEntity } from "./tag.entity";
 
 @Injectable()
 export class TagService {
@@ -27,7 +26,6 @@ export class TagService {
   async findAll(query: PaginationQueryDto): Promise<PaginatedTagsDto> {
     const { page, limit, search } = query;
     const skip = (page - 1) * limit;
-
     const where = search ? { name: ILike(`%${search}%`) } : {};
 
     const [data, total] = await this.tagRepository.findAndCount({
@@ -87,10 +85,9 @@ export class TagService {
     this.logger.log(`Soft deleted tag id: ${id}`);
   }
 
-  // ─── Private helpers ────────────────────────────────────────────────────────
-
   private async assertNameIsUnique(name: string): Promise<void> {
     const existing = await this.tagRepository.findOne({ where: { name } });
+
     if (existing) {
       throw new ConflictException(`Tag with name "${name}" already exists`);
     }

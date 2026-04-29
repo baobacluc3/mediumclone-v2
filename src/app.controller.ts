@@ -25,6 +25,6 @@ export class AppController {
   @Get()
   @ApiOperation({ summary: "Root — redirect info" })
   root(): string {
-    return "Realworld API v1. Docs available at /docs";
+    return "Publishing API v1. Docs available at /docs";
   }
 }

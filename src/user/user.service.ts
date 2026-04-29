@@ -1,17 +1,16 @@
 import {
-  Injectable,
-  NotFoundException,
   ConflictException,
+  Injectable,
   Logger,
+  NotFoundException,
 } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
 import { ConfigService } from "@nestjs/config";
-import { Repository } from "typeorm";
+import { InjectRepository } from "@nestjs/typeorm";
 import * as argon2 from "argon2";
 import * as jwt from "jsonwebtoken";
-
-import { UserEntity } from "./user.entity";
+import { Repository } from "typeorm";
 import { CreateUserDto, LoginUserDto, UpdateUserDto } from "./dto";
+import { UserEntity } from "./user.entity";
 import { UserRO } from "./user.interface";
 
 @Injectable()
@@ -24,30 +23,20 @@ export class UserService {
     private readonly configService: ConfigService,
   ) {}
 
-  // ──────────────────────────────────────────────
-  // Auth
-  // ──────────────────────────────────────────────
-
-  /**
-   * Verifies credentials and returns the matching user, or null if invalid.
-   * We explicitly select `password` here because the column is hidden by default.
-   */
   async findOne({ email, password }: LoginUserDto): Promise<UserEntity | null> {
     const user = await this.userRepository
       .createQueryBuilder("user")
-      .addSelect("user.password") // override select: false on the column
+      .addSelect("user.password")
       .where("user.email = :email", { email })
       .getOne();
 
-    if (!user) return null;
+    if (!user) {
+      return null;
+    }
 
     const isPasswordValid = await argon2.verify(user.password, password);
     return isPasswordValid ? user : null;
   }
-
-  // ──────────────────────────────────────────────
-  // CRUD
-  // ──────────────────────────────────────────────
 
   async findAll(): Promise<UserEntity[]> {
     return this.userRepository.find();
@@ -55,29 +44,34 @@ export class UserService {
 
   async findById(id: number): Promise<UserRO> {
     const user = await this.userRepository.findOne({ where: { id } });
-    if (!user) throw new NotFoundException(`User #${id} not found`);
+
+    if (!user) {
+      throw new NotFoundException(`User #${id} not found`);
+    }
+
     return this.buildUserRO(user);
   }
 
   async findByEmail(email: string): Promise<UserRO> {
     const user = await this.userRepository.findOne({ where: { email } });
-    if (!user)
+
+    if (!user) {
       throw new NotFoundException(`User with email "${email}" not found`);
+    }
+
     return this.buildUserRO(user);
   }
 
   async create(dto: CreateUserDto): Promise<UserRO> {
     const { username, email, password } = dto;
-
     const exists = await this.userRepository.findOne({
       where: [{ username }, { email }],
     });
+
     if (exists) {
       throw new ConflictException("Username or email is already taken.");
     }
 
-    // Service owns password hashing. @BeforeInsert() has been removed from the
-    // entity to avoid double-hashing (hash of a hash breaks login).
     const newUser = this.userRepository.create({
       username,
       email,
@@ -91,10 +85,13 @@ export class UserService {
 
   async update(id: number, dto: UpdateUserDto): Promise<UserRO> {
     const user = await this.userRepository.findOne({ where: { id } });
-    if (!user) throw new NotFoundException(`User #${id} not found`);
 
-    // Hash new password only if it is being changed
+    if (!user) {
+      throw new NotFoundException(`User #${id} not found`);
+    }
+
     const updatedData = { ...dto };
+
     if (updatedData.password) {
       updatedData.password = await argon2.hash(updatedData.password);
     }
@@ -104,23 +101,20 @@ export class UserService {
     return this.buildUserRO(savedUser);
   }
 
-  /**
-   * BUG FIX: original service accepted `email: string` but controller passed
-   * a numeric `id`. Signature now matches the controller and REST convention.
-   */
   async delete(id: number): Promise<void> {
     const user = await this.userRepository.findOne({ where: { id } });
-    if (!user) throw new NotFoundException(`User #${id} not found`);
+
+    if (!user) {
+      throw new NotFoundException(`User #${id} not found`);
+    }
+
     await this.userRepository.delete(id);
     this.logger.log(`User #${id} deleted`);
   }
 
-  // ──────────────────────────────────────────────
-  // Helpers
-  // ──────────────────────────────────────────────
-
   generateJWT(user: UserEntity): string {
     const secret = this.configService.getOrThrow<string>("JWT_SECRET");
+
     return jwt.sign(
       { id: user.id, username: user.username, email: user.email },
       secret,
