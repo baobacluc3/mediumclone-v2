@@ -92,7 +92,7 @@ NODE_ENV=development
 DB_HOST=localhost
 DB_PORT=5432
 DB_USER=postgres
-DB_PASS=your-postgres-password
+DB_PASS=password
 DB_NAME=publishing_api
 
 JWT_SECRET=replace-with-a-long-random-secret

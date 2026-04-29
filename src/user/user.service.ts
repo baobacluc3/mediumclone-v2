@@ -3,6 +3,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  UnauthorizedException,
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { InjectRepository } from "@nestjs/typeorm";
@@ -23,18 +24,27 @@ export class UserService {
   ) {}
 
   async findOne({ email, password }: LoginUserDto): Promise<UserEntity | null> {
-    const user = await this.userRepository
+    const foundUser = await this.userRepository
       .createQueryBuilder("user")
-      .addSelect("user.password")
+      .addSelect("user.password") //required if the column has select: false
       .where("user.email = :email", { email })
       .getOne();
 
-    if (!user) {
-      return null;
-    }
+    if (!foundUser) throw new UnauthorizedException("user not found");
 
-    const isPasswordValid = await argon2.verify(user.password, password);
-    return isPasswordValid ? user : null;
+    const isMatching = await this.validatePassword(
+      foundUser.password,
+      password,
+    );
+    if (!isMatching) throw new UnauthorizedException("invalid");
+    return foundUser;
+  }
+
+  private async validatePassword(
+    plain: string,
+    hashed: string,
+  ): Promise<boolean> {
+    return await argon2.verify(hashed, plain);
   }
 
   async findAll(): Promise<UserEntity[]> {
@@ -52,7 +62,6 @@ export class UserService {
     if (!user) {
       throw new NotFoundException(`User #${id} not found`);
     }
-
     return user;
   }
 
@@ -66,8 +75,7 @@ export class UserService {
     return this.buildUserRO(user);
   }
 
-  async create(dto: CreateUserDto): Promise<UserRO> {
-    const { username, email, password } = dto;
+  async create({ username, email, password }: CreateUserDto): Promise<UserRO> {
     const exists = await this.userRepository.findOne({
       where: [{ username }, { email }],
     });
@@ -79,12 +87,16 @@ export class UserService {
     const newUser = this.userRepository.create({
       username,
       email,
-      password: await argon2.hash(password),
+      password: await this.hashPassword(password),
     });
 
     const savedUser = await this.userRepository.save(newUser);
     this.logger.log(`User created: ${savedUser.email}`);
     return this.buildUserRO(savedUser);
+  }
+
+  private async hashPassword(plain: string): Promise<string> {
+    return await argon2.hash(plain);
   }
 
   async update(id: number, dto: UpdateUserDto): Promise<UserRO> {
@@ -97,7 +109,7 @@ export class UserService {
     const updatedData = { ...dto };
 
     if (updatedData.password) {
-      updatedData.password = await argon2.hash(updatedData.password);
+      updatedData.password = await this.hashPassword(updatedData.password);
     }
 
     const updated = this.userRepository.merge(user, updatedData);
