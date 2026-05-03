@@ -263,7 +263,11 @@ export class ArticleService {
     const alreadyFavorited = user.favorites.some((a) => a.id === article.id);
     if (!alreadyFavorited) {
       user.favorites.push(article);
-      article.favoriteCount++;
+      await this.articleRepository.increment(
+        {id:article.id},
+        "favoriteCount",
+        1
+      );
       await this.userRepository.save(user);
       await this.articleRepository.save(article);
     }
@@ -287,8 +291,13 @@ export class ArticleService {
     const idx = user.favorites.findIndex((a) => a.id === article.id);
     if (idx >= 0) {
       user.favorites.splice(idx, 1);
-      article.favoriteCount = Math.max(0, article.favoriteCount - 1);
-      await this.userRepository.save(user);
+      // article.favoriteCount = Math.max(0, article.favoriteCount - 1);
+      // await this.userRepository.save(user);
+      await this.articleRepository.decrement(
+        {id:article.id},
+        "favoriteCount",
+        1
+      )
       await this.articleRepository.save(article);
     }
 
