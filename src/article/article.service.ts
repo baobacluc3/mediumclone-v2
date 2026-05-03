@@ -268,7 +268,7 @@ export class ArticleService {
         "favoriteCount",
         1
       );
-      await this.userRepository.save(user);
+      //await this.userRepository.save(user);
       await this.articleRepository.save(article);
     }
 
