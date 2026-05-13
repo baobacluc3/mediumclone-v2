@@ -1,8 +1,6 @@
 # Publishing API
 
-NestJS REST API for a Medium-style publishing platform. It covers user auth, article publishing, comments, favorites, profile follows, normalized tags, Swagger docs, Docker, and production-oriented error/rate-limit handling.
-
-![Swagger documentation preview](docs/swagger-preview.svg)
+NestJS REST API for a Medium-style publishing platform. It covers user auth, article publishing, comments, favorites, profile follows, normalized tags, Docker, and production-oriented error/rate-limit handling.
 
 ## Highlights
 
@@ -10,7 +8,7 @@ NestJS REST API for a Medium-style publishing platform. It covers user auth, art
 - Argon2 password hashing and protected current-user/article/follow actions
 - Articles, comments, favorites, personalized feed, and profile follow graph
 - Normalized tag model using a many-to-many `article_tags` join table
-- PostgreSQL migrations, TypeORM repositories, validation pipes, and Swagger docs
+- PostgreSQL migrations, TypeORM repositories, and validation pipes
 - Global exception filter to avoid leaking unexpected stack traces
 - Global API throttling with environment-based limits
 - Docker Compose with Postgres and health checks for both database and app
@@ -19,7 +17,7 @@ NestJS REST API for a Medium-style publishing platform. It covers user auth, art
 
 ```mermaid
 flowchart LR
-  Client["Client or Swagger UI"] --> API["NestJS API /api/v1"]
+  Client["Client"] --> API["NestJS API /api/v1"]
   API --> Guard["Passport JWT Guard"]
   Guard --> User["User Service"]
   API --> Article["Article Service"]
@@ -44,7 +42,6 @@ flowchart LR
 ## API Surface
 
 - Base URL: `http://localhost:3000/api/v1`
-- Swagger docs: `http://localhost:3000/docs`
 - Health check: `http://localhost:3000/api/v1/health`
 
 Key groups:

@@ -258,6 +258,7 @@ export class ArticleService {
       where: { id: userId },
       relations: ["favorites"],
     });
+
     if (!user) throw new NotFoundException("User not found");
 
     const alreadyFavorited = user.favorites.some((a) => a.id === article.id);

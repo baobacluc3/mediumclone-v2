@@ -14,22 +14,12 @@ import {
   UseGuards,
   ForbiddenException,
 } from "@nestjs/common";
-import {
-  ApiBearerAuth,
-  ApiBody,
-  ApiOperation,
-  ApiParam,
-  ApiResponse,
-  ApiTags,
-} from "@nestjs/swagger";
 import { CreateUserDto, LoginUserDto, UpdateUserDto } from "./dto";
 import { UserRO } from "./user.interface";
 import { UserService } from "./user.service";
 import { User } from "./user.decorator";
 import { JwtAuthGuard } from "./jwt-auth.guard";
 
-@ApiBearerAuth()
-@ApiTags("Users")
 @Controller()
 export class UserController {
   private readonly logger = new Logger(UserController.name);
@@ -37,19 +27,12 @@ export class UserController {
   constructor(private readonly userService: UserService) {}
 
   @Get("user")
-  @ApiOperation({ summary: "Get current authenticated user" })
-  @ApiResponse({ status: 200, description: "Returns the logged-in user." })
-  @ApiResponse({ status: 401, description: "Unauthorized." })
   @UseGuards(JwtAuthGuard)
   async findMe(@User("email") email: string): Promise<UserRO> {
     return this.userService.findByEmail(email);
   }
 
   @Put("user")
-  @ApiOperation({ summary: "Update current authenticated user" })
-  @ApiBody({ type: UpdateUserDto })
-  @ApiResponse({ status: 200, description: "User updated successfully." })
-  @ApiResponse({ status: 400, description: "Validation failed." })
   @UseGuards(JwtAuthGuard)
   async update(
     @User("id") userId: number,
@@ -59,22 +42,11 @@ export class UserController {
   }
 
   @Post("users")
-  @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: "Register a new user" })
-  @ApiBody({ type: CreateUserDto })
-  @ApiResponse({ status: 201, description: "User created successfully." })
-  @ApiResponse({ status: 400, description: "Validation failed." })
-  @ApiResponse({ status: 409, description: "Username or email already taken." })
   async create(@Body("user") dto: CreateUserDto): Promise<UserRO> {
     return this.userService.create(dto);
   }
 
   @Post("users/login")
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: "Login with email and password" })
-  @ApiBody({ type: LoginUserDto })
-  @ApiResponse({ status: 200, description: "Login successful." })
-  @ApiResponse({ status: 401, description: "Invalid credentials." })
   async login(@Body("user") dto: LoginUserDto): Promise<UserRO> {
     const user = await this.userService.findOne(dto);
 
@@ -90,11 +62,6 @@ export class UserController {
   }
 
   @Delete("users/:id")
-  @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: "Delete a user by ID" })
-  @ApiParam({ name: "id", type: Number, description: "User ID" })
-  @ApiResponse({ status: 204, description: "User deleted successfully." })
-  @ApiResponse({ status: 404, description: "User not found." })
   @UseGuards(JwtAuthGuard)
   async delete(
     @User("id") currentUserId: number,

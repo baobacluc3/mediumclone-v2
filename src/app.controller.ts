@@ -1,5 +1,4 @@
 import { Controller, Get, HttpCode, HttpStatus } from "@nestjs/common";
-import { ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
 
 interface HealthResponse {
   status: "ok";
@@ -7,13 +6,10 @@ interface HealthResponse {
   uptime: number;
 }
 
-@ApiTags("health")
 @Controller()
 export class AppController {
   @Get("health")
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: "Health check" })
-  @ApiResponse({ status: 200, description: "Service is healthy" })
   healthCheck(): HealthResponse {
     return {
       status: "ok",
@@ -23,8 +19,7 @@ export class AppController {
   }
 
   @Get()
-  @ApiOperation({ summary: "Root — redirect info" })
   root(): string {
-    return "Publishing API v1. Docs available at /docs";
+    return "Publishing API v1";
   }
 }
