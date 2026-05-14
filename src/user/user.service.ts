@@ -3,12 +3,12 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-  UnauthorizedException,
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { InjectRepository } from "@nestjs/typeorm";
 import * as argon2 from "argon2";
 import { Repository } from "typeorm";
+import { Role } from "../common/role.enum";
 import { CreateUserDto, LoginUserDto, UpdateUserDto } from "./dto";
 import { UserEntity } from "./user.entity";
 import { UserRO } from "./user.interface";
@@ -30,19 +30,19 @@ export class UserService {
       .where("user.email = :email", { email })
       .getOne();
 
-    if (!foundUser) throw new UnauthorizedException("user not found");
+    if (!foundUser) return null;
 
     const isMatching = await this.validatePassword(
       foundUser.password,
       password,
     );
-    if (!isMatching) throw new UnauthorizedException("invalid");
+    if (!isMatching) return null;
     return foundUser;
   }
 
   private async validatePassword(
-    plain: string,
     hashed: string,
+    plain: string,
   ): Promise<boolean> {
     return await argon2.verify(hashed, plain);
   }
@@ -88,6 +88,7 @@ export class UserService {
       username,
       email,
       password: await this.hashPassword(password),
+      role: Role.USER,
     });
 
     const savedUser = await this.userRepository.save(newUser);
@@ -133,6 +134,7 @@ export class UserService {
       id: user.id,
       username: user.username,
       email: user.email,
+      role: user.role,
     });
   }
 
@@ -143,6 +145,7 @@ export class UserService {
         email: user.email,
         bio: user.bio ?? "",
         image: user.image ?? "",
+        role: user.role,
         token: this.generateJWT(user),
       },
     };

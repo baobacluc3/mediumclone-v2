@@ -3,8 +3,6 @@ import {
   Controller,
   Delete,
   Get,
-  HttpCode,
-  HttpStatus,
   Logger,
   Param,
   ParseIntPipe,
@@ -55,10 +53,10 @@ export class UserController {
     }
 
     const token = this.userService.generateJWT(user);
-    const { email, username, bio, image } = user;
+    const { email, username, bio, image, role } = user;
 
     this.logger.log(`User logged in: ${email}`);
-    return { user: { email, token, username, bio, image } };
+    return { user: { email, token, username, bio, image, role } };
   }
 
   @Delete("users/:id")

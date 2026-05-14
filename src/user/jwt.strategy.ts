@@ -28,6 +28,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
         email: user.email,
         bio: user.bio ?? "",
         image: user.image ?? "",
+        role: user.role,
       };
     } catch {
       throw new UnauthorizedException("Invalid token.");

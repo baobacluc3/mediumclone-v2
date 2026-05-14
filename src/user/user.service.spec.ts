@@ -5,6 +5,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
 import * as argon2 from "argon2";
 import { Repository } from "typeorm";
+import { Role } from "../common/role.enum";
 
 jest.mock("argon2", () => ({
   hash: jest.fn(),
@@ -27,6 +28,7 @@ const makeUser = (partial: Partial<UserEntity> = {}): UserEntity => {
   user.bio = "";
   user.image = "";
   user.password = "hashed-password";
+  user.role = Role.USER;
   user.createdAt = new Date();
   user.updatedAt = new Date();
   user.favorites = [];
@@ -113,6 +115,7 @@ describe("UserService", () => {
         username: dto.username,
         email: dto.email,
         password: "hashed-password",
+        role: Role.USER,
       });
       expect(repo.save).toHaveBeenCalledWith(savedUser);
       expect(result.user).toEqual(
@@ -121,6 +124,7 @@ describe("UserService", () => {
           email: savedUser.email,
           bio: savedUser.bio,
           image: savedUser.image,
+          role: Role.USER,
           token: expect.any(String),
         }),
       );

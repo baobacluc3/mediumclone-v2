@@ -7,6 +7,7 @@ import { ArticleModule } from "./article/article.module";
 import { AppController } from "./app.controller";
 import { getTypeOrmOptions } from "./database/typeorm.config";
 import { ProfileModule } from "./profile/profile.module";
+import { RbacModule } from "./rbac/rbac.module";
 import { TagModule } from "./tag/tag.module";
 import { UserModule } from "./user/user.module";
 
@@ -24,6 +25,7 @@ import { UserModule } from "./user/user.module";
     UserModule,
     ProfileModule,
     TagModule,
+    RbacModule,
   ],
   controllers: [AppController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
