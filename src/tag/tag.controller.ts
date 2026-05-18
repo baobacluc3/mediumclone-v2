@@ -15,7 +15,6 @@ import {
   CreateTagDto,
   PaginatedTagsDto,
   PaginationQueryDto,
-  TagResponseDto,
   UpdateTagDto,
 } from "./tag.dto";
 import { TagEntity } from "./tag.entity";
