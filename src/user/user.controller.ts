@@ -22,15 +22,7 @@ import { JwtAuthGuard } from "./jwt-auth.guard";
 
 @Controller()
 export class UserController {
-  private readonly logger = new Logger(UserController.name);
-
   constructor(private readonly userService: UserService) {}
-
-  @Get("user")
-  @UseGuards(JwtAuthGuard)
-  async findMe(@User("email") email: string): Promise<UserRO> {
-    return this.userService.findByEmail(email);
-  }
 
   @Put("user")
   @UseGuards(JwtAuthGuard)
@@ -48,7 +40,7 @@ export class UserController {
 
   @Post("users/login")
   async login(@Body("user") dto: LoginUserDto): Promise<UserRO> {
-    const user = await this.userService.findOne(dto);
+    const user = await this.userService.validateUser(dto);
 
     if (!user) {
       throw new UnauthorizedException("Invalid email or password.");
@@ -57,7 +49,6 @@ export class UserController {
     const token = this.userService.generateJWT(user);
     const { email, username, bio, image } = user;
 
-    this.logger.log(`User logged in: ${email}`);
     return { user: { email, token, username, bio, image } };
   }
 

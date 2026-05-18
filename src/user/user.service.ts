@@ -23,7 +23,10 @@ export class UserService {
     private readonly jwtService: JwtService,
   ) {}
 
-  async findOne({ email, password }: LoginUserDto): Promise<UserEntity | null> {
+  async validateUser({
+    email,
+    password,
+  }: LoginUserDto): Promise<UserEntity | null> {
     const foundUser = await this.userRepository
       .createQueryBuilder("user")
       .addSelect("user.password") //required if the column has select: false
@@ -47,32 +50,18 @@ export class UserService {
     return await argon2.verify(hashed, plain);
   }
 
-  async findAll(): Promise<UserEntity[]> {
-    return this.userRepository.find();
-  }
-
   async findById(id: number): Promise<UserRO> {
     const user = await this.findEntityById(id);
     return this.buildUserRO(user);
   }
 
-  async findEntityById(id: number): Promise<UserEntity> {
+  private async findEntityById(id: number): Promise<UserEntity> {
     const user = await this.userRepository.findOne({ where: { id } });
 
     if (!user) {
       throw new NotFoundException(`User #${id} not found`);
     }
     return user;
-  }
-
-  async findByEmail(email: string): Promise<UserRO> {
-    const user = await this.userRepository.findOne({ where: { email } });
-
-    if (!user) {
-      throw new NotFoundException(`User with email "${email}" not found`);
-    }
-
-    return this.buildUserRO(user);
   }
 
   async create({ username, email, password }: CreateUserDto): Promise<UserRO> {
@@ -100,7 +89,7 @@ export class UserService {
   }
 
   async update(id: number, dto: UpdateUserDto): Promise<UserRO> {
-    const user = await this.userRepository.findOne({ where: { id } });
+    const user = await this.findEntityById(id);
 
     if (!user) {
       throw new NotFoundException(`User #${id} not found`);
@@ -118,7 +107,7 @@ export class UserService {
   }
 
   async delete(id: number): Promise<void> {
-    const user = await this.userRepository.findOne({ where: { id } });
+    const user = await this.findEntityById(id);
 
     if (!user) {
       throw new NotFoundException(`User #${id} not found`);

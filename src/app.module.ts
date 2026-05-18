@@ -9,6 +9,7 @@ import { getTypeOrmOptions } from "./database/typeorm.config";
 import { ProfileModule } from "./profile/profile.module";
 import { TagModule } from "./tag/tag.module";
 import { UserModule } from "./user/user.module";
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { UserModule } from "./user/user.module";
     UserModule,
     ProfileModule,
     TagModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

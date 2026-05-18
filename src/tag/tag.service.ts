@@ -16,8 +16,6 @@ import { TagEntity } from "./tag.entity";
 
 @Injectable()
 export class TagService {
-  private readonly logger = new Logger(TagService.name);
-
   constructor(
     @InjectRepository(TagEntity)
     private readonly tagRepository: Repository<TagEntity>,
