@@ -18,15 +18,13 @@ A simple REST API for a Medium-style blog, built with NestJS, TypeORM, PostgreSQ
 - TypeORM
 - PostgreSQL
 - JWT authentication
-- Jest
 
 ## API Endpoints
 
-Base URL: `http://localhost:3000/api/v1`
+Base URL: `http://localhost:3000/api`
 
 | Method | Endpoint | Description |
 | --- | --- | --- |
-| `GET` | `/health` | Health check |
 | `POST` | `/users` | Register |
 | `POST` | `/users/login` | Login |
 | `GET` | `/user` | Current user |
@@ -67,7 +65,6 @@ src/
 │   ├── tag/
 │   └── user/
 ├── app.module.ts
-├── health.controller.ts
 └── main.ts
 ```
 
@@ -100,8 +97,6 @@ JWT_SECRET=change-me
 ```bash
 npm run build
 npm run start:dev
-npm run test
-npm run test:cov
 npm run lint
 npm run format
 ```
