@@ -1,13 +1,13 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
-import { ArticleModule } from "./article/article.module";
-import { AppController } from "./app.controller";
+import { ArticleModule } from "./modules/article/article.module";
+import { HealthController } from "./health.controller";
 import { getTypeOrmOptions } from "./database/typeorm.config";
-import { ProfileModule } from "./profile/profile.module";
+import { ProfileModule } from "../src/modules/profile";
 import { TagModule } from "./tag/tag.module";
 import { UserModule } from "./user/user.module";
-import { AuthModule } from './auth/auth.module';
+import { AuthModule } from "./auth/auth.module";
 
 @Module({
   imports: [
@@ -19,6 +19,6 @@ import { AuthModule } from './auth/auth.module';
     TagModule,
     AuthModule,
   ],
-  controllers: [AppController],
+  controllers: [HealthController],
 })
 export class ApplicationModule {}
