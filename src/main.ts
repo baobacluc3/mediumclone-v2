@@ -1,35 +1,15 @@
-import { ValidationPipe, VersioningType, Logger } from "@nestjs/common";
+import { ValidationPipe, VersioningType } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { ApplicationModule } from "./app.module";
-import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter";
 
 async function bootstrap(): Promise<void> {
-  const logger = new Logger("Bootstrap");
-
-  const app = await NestFactory.create(ApplicationModule, {
-    cors: {
-      origin: process.env.ALLOWED_ORIGINS?.split(",") ?? "*",
-      methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-      credentials: true,
-    },
-  });
+  const app = await NestFactory.create(ApplicationModule, { cors: true });
 
   app.setGlobalPrefix("api");
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: "1" });
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-      transformOptions: { enableImplicitConversion: true },
-    }),
-  );
-  app.useGlobalFilters(new AllExceptionsFilter());
-
-  const port = process.env.PORT ?? 3000;
-  await app.listen(port);
-  logger.log(`Application ready at http://localhost:${port}/api/v1`);
+  await app.listen(process.env.PORT ?? 3000);
 }
 
 bootstrap();
