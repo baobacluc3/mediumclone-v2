@@ -1,31 +1,16 @@
 import { TypeOrmModuleOptions } from "@nestjs/typeorm";
-import { DataSourceOptions } from "typeorm";
-
-function parseBoolean(value: string | undefined, fallback = false): boolean {
-  if (value == null) {
-    return fallback;
-  }
-
-  return value.toLowerCase() === "true";
-}
 
 export function getTypeOrmOptions(
   env: NodeJS.ProcessEnv = process.env,
-): TypeOrmModuleOptions & DataSourceOptions {
-  const databaseUrl = env.DATABASE_URL;
-
+): TypeOrmModuleOptions {
   return {
     type: "postgres",
-    url: databaseUrl || undefined,
-    host: databaseUrl ? undefined : (env.DB_HOST ?? "localhost"),
-    port: databaseUrl ? undefined : Number(env.DB_PORT ?? "5432"),
-    username: databaseUrl ? undefined : (env.DB_USER ?? "postgres"),
-    password: databaseUrl ? undefined : (env.DB_PASS ?? ""),
-    database: databaseUrl ? undefined : (env.DB_NAME ?? "publishing_api"),
+    host: env.DB_HOST ?? "localhost",
+    port: Number(env.DB_PORT ?? 5432),
+    username: env.DB_USER ?? "postgres",
+    password: env.DB_PASS ?? "",
+    database: env.DB_NAME ?? "mediumclone",
     entities: [__dirname + "/../**/*.entity{.ts,.js}"],
-    migrations: [__dirname + "/../migrations/*{.ts,.js}"],
-    migrationsTableName: "migrations",
-    synchronize: parseBoolean(env.DB_SYNCHRONIZE, false),
-    logging: parseBoolean(env.DB_LOGGING, env.NODE_ENV === "development"),
+    synchronize: true,
   };
 }
