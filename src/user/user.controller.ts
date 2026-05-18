@@ -3,14 +3,11 @@ import {
   Controller,
   Delete,
   Get,
-  HttpCode,
-  HttpStatus,
   Logger,
   Param,
   ParseIntPipe,
   Post,
   Put,
-  UnauthorizedException,
   UseGuards,
   ForbiddenException,
 } from "@nestjs/common";
@@ -22,7 +19,15 @@ import { JwtAuthGuard } from "./jwt-auth.guard";
 
 @Controller()
 export class UserController {
+  private readonly logger = new Logger(UserController.name);
+
   constructor(private readonly userService: UserService) {}
+
+  @Get("user")
+  @UseGuards(JwtAuthGuard)
+  async findMe(@User("id") userId: number): Promise<UserRO> {
+    return this.userService.findById(userId);
+  }
 
   @Put("user")
   @UseGuards(JwtAuthGuard)
@@ -40,16 +45,10 @@ export class UserController {
 
   @Post("users/login")
   async login(@Body("user") dto: LoginUserDto): Promise<UserRO> {
-    const user = await this.userService.validateUser(dto);
+    const user = await this.userService.findOne(dto);
 
-    if (!user) {
-      throw new UnauthorizedException("Invalid email or password.");
-    }
-
-    const token = this.userService.generateJWT(user);
-    const { email, username, bio, image } = user;
-
-    return { user: { email, token, username, bio, image } };
+    this.logger.log(`User logged in: ${user.email}`);
+    return this.userService.buildUserRO(user);
   }
 
   @Delete("users/:id")
