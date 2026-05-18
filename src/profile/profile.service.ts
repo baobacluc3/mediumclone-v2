@@ -6,9 +6,9 @@ import {
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
-import { UserEntity } from "../../user/entities/user.entity";
-import { FollowsEntity } from "../entities/follows.entity";
-import { ProfileData, ProfileRO } from "../interfaces/profile.interface";
+import { UserEntity } from "../user/user.entity";
+import { FollowsEntity } from "./follows.entity";
+import { ProfileData, ProfileRO } from "./profile.interface";
 
 @Injectable()
 export class ProfileService {

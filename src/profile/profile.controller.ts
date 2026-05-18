@@ -8,10 +8,10 @@ import {
   HttpStatus,
   UseGuards,
 } from "@nestjs/common";
-import { ProfileService } from "../services/profile.service";
-import { ProfileRO } from "../interfaces/profile.interface";
-import { User } from "../../../common/decorators/user.decorator";
-import { JwtAuthGuard } from "../../../common/guards/jwt-auth.guard";
+import { ProfileService } from "./profile.service";
+import { ProfileRO } from "./profile.interface";
+import { User } from "../common/decorators/user.decorator";
+import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 
 @Controller("profiles")
 export class ProfileController {

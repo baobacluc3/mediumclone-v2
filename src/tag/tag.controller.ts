@@ -16,9 +16,9 @@ import {
   PaginatedTagsDto,
   PaginationQueryDto,
   UpdateTagDto,
-} from "../dto/tag.dto";
-import { TagEntity } from "../entities/tag.entity";
-import { TagService } from "../services/tag.service";
+} from "./dto/tag.dto";
+import { TagEntity } from "./tag.entity";
+import { TagService } from "./tag.service";
 
 @Controller("tags")
 export class TagController {

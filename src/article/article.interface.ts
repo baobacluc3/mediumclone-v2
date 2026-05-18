@@ -1,5 +1,5 @@
-import { ArticleEntity } from "../entities/article.entity";
-import { Comment } from "../entities/comment.entity";
+import { ArticleEntity } from "./article.entity";
+import { Comment } from "./comment.entity";
 
 export type ArticleResponse = Omit<ArticleEntity, "tags"> & {
   tagList: string[];

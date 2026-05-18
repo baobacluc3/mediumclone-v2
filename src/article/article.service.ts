@@ -8,18 +8,18 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { DataSource, DeleteResult, In, Repository } from "typeorm";
 import slugify from "slug";
 
-import { ArticleEntity } from "../entities/article.entity";
-import { Comment } from "../entities/comment.entity";
-import { UserEntity } from "../../user/entities/user.entity";
-import { FollowsEntity } from "../../profile/entities/follows.entity";
-import { TagEntity } from "../../tag/entities/tag.entity";
-import { CreateArticleDto, CreateCommentDto, ArticleQueryDto } from "../dto";
+import { ArticleEntity } from "./article.entity";
+import { Comment } from "./comment.entity";
+import { UserEntity } from "../user/user.entity";
+import { FollowsEntity } from "../profile/follows.entity";
+import { TagEntity } from "../tag/tag.entity";
+import { CreateArticleDto, CreateCommentDto, ArticleQueryDto } from "./dto";
 import {
   ArticleResponse,
   ArticleRO,
   ArticlesRO,
   CommentsRO,
-} from "../interfaces/article.interface";
+} from "./article.interface";
 
 @Injectable()
 export class ArticleService {

@@ -11,11 +11,11 @@ import {
   UseGuards,
   ForbiddenException,
 } from "@nestjs/common";
-import { CreateUserDto, LoginUserDto, UpdateUserDto } from "../dto";
-import { UserRO } from "../interfaces/user.interface";
-import { UserService } from "../services/user.service";
-import { User } from "../../../common/decorators/user.decorator";
-import { JwtAuthGuard } from "../../../common/guards/jwt-auth.guard";
+import { CreateUserDto, LoginUserDto, UpdateUserDto } from "./dto";
+import { UserRO } from "./user.interface";
+import { UserService } from "./user.service";
+import { User } from "../common/decorators/user.decorator";
+import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 
 @Controller()
 export class UserController {
