@@ -49,6 +49,30 @@ Base URL: `http://localhost:3000/api/v1`
 | `PUT` | `/tags/:id` | Update tag |
 | `DELETE` | `/tags/:id` | Delete tag |
 
+## Project Structure
+
+```text
+src/
+├── auth/                  # JWT strategy and auth payload types
+├── common/                # Shared decorators and guards
+├── database/              # Database configuration
+├── modules/               # Feature modules grouped by domain
+│   ├── article/
+│   │   ├── controllers/
+│   │   ├── dto/
+│   │   ├── entities/
+│   │   ├── interfaces/
+│   │   └── services/
+│   ├── profile/
+│   ├── tag/
+│   └── user/
+├── app.module.ts
+├── health.controller.ts
+└── main.ts
+```
+
+Feature code is grouped by domain under `src/modules`, while cross-cutting authentication and request helpers live in `src/auth` and `src/common`.
+
 ## Setup
 
 ```bash
