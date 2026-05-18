@@ -13,15 +13,11 @@ import {
   UseGuards,
 } from "@nestjs/common";
 
-import { ArticleService } from "../services/article.service";
-import { CreateArticleDto, CreateCommentDto, ArticleQueryDto } from "../dto";
-import {
-  ArticlesRO,
-  ArticleRO,
-  CommentsRO,
-} from "../interfaces/article.interface";
-import { User } from "../../../common/decorators/user.decorator";
-import { JwtAuthGuard } from "../../../common/guards/jwt-auth.guard";
+import { ArticleService } from "./article.service";
+import { CreateArticleDto, CreateCommentDto, ArticleQueryDto } from "./dto";
+import { ArticlesRO, ArticleRO, CommentsRO } from "./article.interface";
+import { User } from "../common/decorators/user.decorator";
+import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 
 @Controller("articles")
 export class ArticleController {

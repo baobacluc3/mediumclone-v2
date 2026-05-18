@@ -1,9 +1,9 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
-import { ArticleModule } from "./modules/article/article.module";
+import { ArticleModule } from "./article/article.module";
 import { getTypeOrmOptions } from "./database/typeorm.config";
-import { ProfileModule } from "../src/modules/profile";
+import { ProfileModule } from "./profile/profile.module";
 import { TagModule } from "./tag/tag.module";
 import { UserModule } from "./user/user.module";
 import { AuthModule } from "./auth/auth.module";

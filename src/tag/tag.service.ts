@@ -11,11 +11,13 @@ import {
   PaginatedTagsDto,
   PaginationQueryDto,
   UpdateTagDto,
-} from "../dto/tag.dto";
-import { TagEntity } from "../entities/tag.entity";
+} from "./dto/tag.dto";
+import { TagEntity } from "./tag.entity";
 
 @Injectable()
 export class TagService {
+  private readonly logger = new Logger(TagService.name);
+
   constructor(
     @InjectRepository(TagEntity)
     private readonly tagRepository: Repository<TagEntity>,

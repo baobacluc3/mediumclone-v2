@@ -10,8 +10,8 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
 } from "typeorm";
-import { UserEntity } from "../../user/entities/user.entity";
-import { TagEntity } from "../../tag/entities/tag.entity";
+import { UserEntity } from "../user/user.entity";
+import { TagEntity } from "../tag/tag.entity";
 import { Comment } from "./comment.entity";
 
 @Entity("articles")
