@@ -1,4 +1,8 @@
-import { ConflictException, NotFoundException } from "@nestjs/common";
+import {
+  ConflictException,
+  NotFoundException,
+  UnauthorizedException,
+} from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import { Test, TestingModule } from "@nestjs/testing";
@@ -126,6 +130,33 @@ describe("UserService", () => {
       );
     });
 
+    it("normalizes username and email before creating", async () => {
+      const dto: CreateUserDto = {
+        username: "  johndoe  ",
+        email: "  JOHN@EXAMPLE.COM  ",
+        password: "plain-password",
+      };
+      const savedUser = makeUser();
+
+      repo.findOne.mockResolvedValue(null);
+      repo.create.mockReturnValue(savedUser);
+      repo.save.mockResolvedValue(savedUser);
+      (
+        argon2.hash as jest.MockedFunction<typeof argon2.hash>
+      ).mockResolvedValue("hashed-password");
+
+      await service.create(dto);
+
+      expect(repo.findOne).toHaveBeenCalledWith({
+        where: [{ username: "johndoe" }, { email: "john@example.com" }],
+      });
+      expect(repo.create).toHaveBeenCalledWith({
+        username: "johndoe",
+        email: "john@example.com",
+        password: "hashed-password",
+      });
+    });
+
     it("throws a conflict exception when username or email already exists", async () => {
       repo.findOne.mockResolvedValue(makeUser());
 
@@ -157,14 +188,17 @@ describe("UserService", () => {
 
       expect(repo.createQueryBuilder).toHaveBeenCalledWith("user");
       expect(queryBuilder.addSelect).toHaveBeenCalledWith("user.password");
-      expect(queryBuilder.where).toHaveBeenCalledWith("user.email = :email", {
-        email: dto.email,
-      });
+      expect(queryBuilder.where).toHaveBeenCalledWith(
+        "LOWER(user.email) = :email",
+        {
+          email: dto.email,
+        },
+      );
       expect(argon2.verify).toHaveBeenCalledWith(user.password, dto.password);
       expect(result).toBe(user);
     });
 
-    it("returns null when the password is invalid", async () => {
+    it("throws unauthorized when the password is invalid", async () => {
       queryBuilder.getOne.mockResolvedValue(makeUser());
       (
         argon2.verify as jest.MockedFunction<typeof argon2.verify>
@@ -175,7 +209,39 @@ describe("UserService", () => {
           email: "john@example.com",
           password: "wrong-password",
         }),
-      ).resolves.toBeNull();
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it("normalizes login email before lookup", async () => {
+      const user = makeUser();
+      queryBuilder.getOne.mockResolvedValue(user);
+      (
+        argon2.verify as jest.MockedFunction<typeof argon2.verify>
+      ).mockResolvedValue(true);
+
+      await service.findOne({
+        email: "  JOHN@EXAMPLE.COM  ",
+        password: "plain-password",
+      });
+
+      expect(queryBuilder.where).toHaveBeenCalledWith(
+        "LOWER(user.email) = :email",
+        {
+          email: "john@example.com",
+        },
+      );
+    });
+
+    it("throws unauthorized when the email is unknown", async () => {
+      queryBuilder.getOne.mockResolvedValue(null);
+
+      await expect(
+        service.findOne({
+          email: "missing@example.com",
+          password: "plain-password",
+        }),
+      ).rejects.toThrow(UnauthorizedException);
+      expect(argon2.verify).not.toHaveBeenCalled();
     });
   });
 
@@ -214,6 +280,17 @@ describe("UserService", () => {
           token: expect.any(String),
         }),
       );
+    });
+
+    it("throws a conflict exception when updating to a taken username or email", async () => {
+      repo.findOne
+        .mockResolvedValueOnce(makeUser())
+        .mockResolvedValueOnce(makeUser({ id: 2, username: "taken" }));
+
+      await expect(service.update(1, { username: "taken" })).rejects.toThrow(
+        ConflictException,
+      );
+      expect(repo.save).not.toHaveBeenCalled();
     });
 
     it("throws not found when updating a missing user", async () => {
