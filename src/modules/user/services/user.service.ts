@@ -7,7 +7,7 @@ import {
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { InjectRepository } from "@nestjs/typeorm";
-import * as argon2 from "argon2";
+import * as bcrypt from "bcrypt";
 import { Not, Repository } from "typeorm";
 import { CreateUserDto, LoginUserDto, UpdateUserDto } from "../dto";
 import { UserEntity } from "../entities/user.entity";
@@ -51,7 +51,7 @@ export class UserService {
     plain: string,
     hashed: string,
   ): Promise<boolean> {
-    return argon2.verify(hashed, plain);
+    return bcrypt.compare(plain, hashed);
   }
 
   async findAll(): Promise<UserEntity[]> {
@@ -107,7 +107,7 @@ export class UserService {
   }
 
   private async hashPassword(plain: string): Promise<string> {
-    return argon2.hash(plain);
+    return bcrypt.hash(plain, 10);
   }
 
   async update(id: number, dto: UpdateUserDto = {}): Promise<UserRO> {

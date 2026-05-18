@@ -11,17 +11,13 @@ import {
 import { ProfileService } from "../services/profile.service";
 import { ProfileRO } from "../interfaces/profile.interface";
 import { User } from "../../../common/decorators/user.decorator";
-import {
-  JwtAuthGuard,
-  OptionalJwtAuthGuard,
-} from "../../../common/guards/jwt-auth.guard";
+import { JwtAuthGuard } from "../../../common/guards/jwt-auth.guard";
 
 @Controller("profiles")
 export class ProfileController {
   constructor(private readonly profileService: ProfileService) {}
 
   @Get(":username")
-  @UseGuards(OptionalJwtAuthGuard)
   async getProfile(
     @User("id") userId: number,
     @Param("username") username: string,
