@@ -1,20 +1,75 @@
+import { UserEntity } from "@/user/user.entity";
 import { UserService } from "../user/user.service";
-import { Injectable } from "@nestjs/common";
-import { LoginUserDto } from "./dto/login-user.dto";
+import {
+  ConflictException,
+  Injectable,
+  UnauthorizedException,
+} from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { RegisterDto } from "./dto/register.dto";
+import { LoginUserDto } from "./dto/login.dto";
+import * as bcrypt from "bcrypt";
 import { JwtService } from "@nestjs/jwt";
 
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly usersService: UserService,
+    private userService: UserService,
+    @InjectRepository(UserEntity)
+    private readonly userRepository: Repository<UserEntity>,
     private jwtService: JwtService,
   ) {}
 
-  async signIn(loginUserDto: LoginUserDto): Promise<{ access_token: string }> {
-    const user = await this.usersService.findOne(loginUserDto);
-    const payload = { email: user.email, sub: user.id };
+  async register(dto: RegisterDto) {
+    const email = dto.email.toLowerCase().trim();
+
+    const existingUser = await this.userService.findByEmail(email);
+
+    if (existingUser) {
+      throw new ConflictException("email already exists");
+    }
+
+    const hashedPassword = await bcrypt.hash(dto.password, 10);
+
+    const user = this.userRepository.create(email, hashedPassword);
+
     return {
-      access_token: this.jwtService.sign(payload),
+      id: user.id,
+      email: user.email,
+      createdAt: user.createdAt,
     };
+  }
+
+  async login(dto: LoginUserDto) {
+    const email = dto.email.toLowerCase().trim();
+    const user = await this.userService.findByEmailWithPassword(email);
+    if (!user) throw new UnauthorizedException("Invalid email or password");
+    const isPasswordValid = await bcrypt.compare(
+      dto.password,
+      user.passwordHash,
+    );
+
+    if (!isPasswordValid)
+      throw new UnauthorizedException("Invalid email or password");
+
+    const accessToken = await this.signAccessToken(user.id, user.email);
+
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+      },
+      accessToken,
+    };
+  }
+
+  private signAccessToken(userId: number, email: string) {
+    const payload = {
+      sub: userId,
+      email,
+    };
+
+    return this.jwtService.signAsync(payload);
   }
 }

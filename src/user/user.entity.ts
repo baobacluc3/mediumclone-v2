@@ -29,8 +29,8 @@ export class UserEntity {
   @Column({ default: "" })
   image: string;
 
-  @Column({ select: false })
-  password: string;
+  @Column({ name: "passwordHash", select: false })
+  passwordHash: string;
 
   @CreateDateColumn()
   createdAt: Date;

@@ -16,19 +16,19 @@ export class UpdateUserDto {
 
   @IsOptional()
   @IsEmail()
-  readonly email?: string;
+  email?: string;
 
   @IsOptional()
   @IsString()
   @MinLength(8, { message: "Password must be at least 8 characters" })
-  readonly password?: string;
+  password?: string;
 
   @IsOptional()
   @IsString()
   @MaxLength(300)
-  readonly bio?: string;
+  bio?: string;
 
   @IsOptional()
   @IsUrl()
-  readonly image?: string;
+  image?: string;
 }

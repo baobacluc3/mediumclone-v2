@@ -1,7 +1,6 @@
 import {
   ConflictException,
   Injectable,
-  Logger,
   NotFoundException,
   UnauthorizedException,
 } from "@nestjs/common";
@@ -9,210 +8,150 @@ import { JwtService } from "@nestjs/jwt";
 import { InjectRepository } from "@nestjs/typeorm";
 import * as bcrypt from "bcrypt";
 import { Not, Repository } from "typeorm";
+
 import { CreateUserDto, LoginUserDto, UpdateUserDto } from "./dto";
 import { UserEntity } from "./user.entity";
-import { UserRO } from "./user.interface";
 
 @Injectable()
 export class UserService {
-  private readonly logger = new Logger(UserService.name);
-  private readonly duplicateMessage = "Username or email is already taken.";
-
   constructor(
     @InjectRepository(UserEntity)
-    private readonly userRepository: Repository<UserEntity>,
-    private readonly jwtService: JwtService,
+    private userRepository: Repository<UserEntity>,
+    private jwtService: JwtService,
   ) {}
 
-  async findOne({ email, password }: LoginUserDto): Promise<UserEntity> {
-    const normalizedEmail = this.normalizeEmail(email);
-    const foundUser = await this.userRepository
+  async login(dto: LoginUserDto) {
+    const user = await this.userRepository
       .createQueryBuilder("user")
-      .addSelect("user.password") // required because the column has select: false
-      .where("LOWER(user.email) = :email", { email: normalizedEmail })
+      .addSelect("user.password")
+      .where("LOWER(user.email) = :email", {
+        email: dto.email.toLowerCase(),
+      })
       .getOne();
 
-    if (!foundUser) {
-      throw new UnauthorizedException("Invalid email or password.");
-    }
-
-    const isMatching = await this.validatePassword(
-      password,
-      foundUser.password,
-    );
-    if (!isMatching) {
-      throw new UnauthorizedException("Invalid email or password.");
-    }
-
-    return foundUser;
-  }
-
-  private async validatePassword(
-    plain: string,
-    hashed: string,
-  ): Promise<boolean> {
-    return bcrypt.compare(plain, hashed);
-  }
-
-  async findAll(): Promise<UserEntity[]> {
-    return this.userRepository.find();
-  }
-
-  async findById(id: number): Promise<UserRO> {
-    const user = await this.findEntityById(id);
-    return this.buildUserRO(user);
-  }
-
-  async findEntityById(id: number): Promise<UserEntity> {
-    const user = await this.userRepository.findOne({ where: { id } });
-
     if (!user) {
-      throw new NotFoundException(`User #${id} not found`);
+      throw new UnauthorizedException("Invalid credentials");
     }
-    return user;
+
+    const isMatch = await bcrypt.compare(dto.password, user.password);
+
+    if (!isMatch) {
+      throw new UnauthorizedException("Invalid credentials");
+    }
+
+    return this.buildUserResponse(user);
   }
 
-  async findByEmail(email: string): Promise<UserRO> {
+  async findById(id: number) {
     const user = await this.userRepository.findOne({
-      where: { email: this.normalizeEmail(email) },
+      where: { id },
     });
 
     if (!user) {
-      throw new NotFoundException(`User with email "${email}" not found`);
+      throw new NotFoundException("User not found");
     }
 
-    return this.buildUserRO(user);
+    return this.buildUserResponse(user);
   }
 
-  async create(dto: CreateUserDto): Promise<UserRO> {
-    const username = this.normalizeUsername(dto.username);
-    const email = this.normalizeEmail(dto.email);
+  findByEmail(email: string) {
+    return this.userRepository.findOne({
+      where: { email },
+    });
+  }
 
-    await this.ensureUserIsUnique({ username, email });
+  findByEmailWithPassword(email: string) {
+    return this.userRepository
+      .createQueryBuilder("user")
+      .addSelect("user.passwordHash")
+      .where("user.email=:email", { email })
+      .getOne();
+  }
 
-    const newUser = this.userRepository.create({
-      username,
+  create(email: string, passwordHash: string) {
+    const user = this.userRepository.create({
       email,
-      password: await this.hashPassword(dto.password),
+      passwordHash,
     });
 
-    try {
-      const savedUser = await this.userRepository.save(newUser);
-      this.logger.log(`User created: ${savedUser.email}`);
-      return this.buildUserRO(savedUser);
-    } catch (error) {
-      this.throwConflictOnUniqueViolation(error);
-      throw error;
-    }
+    return this.userRepository.save(user);
   }
 
-  private async hashPassword(plain: string): Promise<string> {
-    return bcrypt.hash(plain, 10);
+  async update(id: number, dto: UpdateUserDto) {
+    const user = await this.userRepository.findOne({
+      where: { id },
+    });
+
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+
+    if (dto.email || dto.username) {
+      const existingUser = await this.userRepository.findOne({
+        where: [
+          dto.email
+            ? {
+                email: dto.email,
+                id: Not(id),
+              }
+            : {},
+          dto.username
+            ? {
+                username: dto.username,
+                id: Not(id),
+              }
+            : {},
+        ],
+      });
+
+      if (existingUser) {
+        throw new ConflictException("Username or email already exists");
+      }
+    }
+
+    if (dto.password) {
+      dto.password = await bcrypt.hash(dto.password, 10);
+    }
+
+    Object.assign(user, dto);
+
+    const updatedUser = await this.userRepository.save(user);
+
+    return this.buildUserResponse(updatedUser);
   }
 
-  async update(id: number, dto: UpdateUserDto = {}): Promise<UserRO> {
-    const user = await this.findEntityById(id);
-    const updatedData = this.normalizeUpdateDto(dto);
+  async delete(id: number) {
+    const user = await this.userRepository.findOne({
+      where: { id },
+    });
 
-    if (updatedData.username || updatedData.email) {
-      await this.ensureUserIsUnique(updatedData, id);
+    if (!user) {
+      throw new NotFoundException("User not found");
     }
 
-    if (updatedData.password) {
-      updatedData.password = await this.hashPassword(updatedData.password);
-    }
-
-    const updated = this.userRepository.merge(user, updatedData);
-
-    try {
-      const savedUser = await this.userRepository.save(updated);
-      return this.buildUserRO(savedUser);
-    } catch (error) {
-      this.throwConflictOnUniqueViolation(error);
-      throw error;
-    }
-  }
-
-  async delete(id: number): Promise<void> {
-    await this.findEntityById(id);
     await this.userRepository.delete(id);
-    this.logger.log(`User #${id} deleted`);
+
+    return {
+      message: "User deleted successfully",
+    };
   }
 
-  generateJWT(user: UserEntity): string {
+  generateJWT(user: UserEntity) {
     return this.jwtService.sign({
       id: user.id,
-      username: user.username,
       email: user.email,
     });
   }
 
-  buildUserRO(user: UserEntity): UserRO {
+  buildUserResponse(user: UserEntity) {
     return {
       user: {
         username: user.username,
         email: user.email,
-        bio: user.bio ?? "",
-        image: user.image ?? "",
+        bio: user.bio || "",
+        image: user.image || "",
         token: this.generateJWT(user),
       },
     };
-  }
-
-  private normalizeUpdateDto(dto: UpdateUserDto): Partial<UserEntity> {
-    return {
-      ...dto,
-      ...(dto.username
-        ? { username: this.normalizeUsername(dto.username) }
-        : {}),
-      ...(dto.email ? { email: this.normalizeEmail(dto.email) } : {}),
-    };
-  }
-
-  private normalizeUsername(username: string): string {
-    return username.trim();
-  }
-
-  private normalizeEmail(email: string): string {
-    return email.trim().toLowerCase();
-  }
-
-  private async ensureUserIsUnique(
-    { username, email }: Pick<UpdateUserDto, "username" | "email">,
-    currentUserId?: number,
-  ): Promise<void> {
-    const where = [
-      username
-        ? { username, ...(currentUserId ? { id: Not(currentUserId) } : {}) }
-        : null,
-      email
-        ? { email, ...(currentUserId ? { id: Not(currentUserId) } : {}) }
-        : null,
-    ].filter(Boolean);
-
-    if (where.length === 0) {
-      return;
-    }
-
-    const existingUser = await this.userRepository.findOne({ where });
-
-    if (existingUser) {
-      throw new ConflictException(this.duplicateMessage);
-    }
-  }
-
-  private throwConflictOnUniqueViolation(error: unknown): void {
-    if (this.isUniqueViolation(error)) {
-      throw new ConflictException(this.duplicateMessage);
-    }
-  }
-
-  private isUniqueViolation(error: unknown): boolean {
-    return (
-      typeof error === "object" &&
-      error !== null &&
-      "code" in error &&
-      (error as { code?: string }).code === "23505"
-    );
   }
 }
