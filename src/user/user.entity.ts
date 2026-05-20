@@ -10,6 +10,7 @@ import {
   UpdateDateColumn,
 } from "typeorm";
 import { ArticleEntity } from "../article/article.entity";
+import { CommentEntity } from "@/comment/comment.entity";
 
 @Entity("user")
 export class UserEntity {
@@ -44,4 +45,6 @@ export class UserEntity {
 
   @OneToMany(() => ArticleEntity, (article) => article.author)
   articles: ArticleEntity[];
+
+  comments: CommentEntity[];
 }
