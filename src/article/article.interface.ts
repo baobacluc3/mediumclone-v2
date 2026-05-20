@@ -1,17 +1,17 @@
-import { ArticleEntity } from "./article.entity";
+import { PostEntity } from "./post.entity";
 import { Comment } from "./comment.entity";
 
-export type ArticleResponse = Omit<ArticleEntity, "tags"> & {
+export type PostResponse = Omit<PostEntity, "tags"> & {
   tagList: string[];
 };
 
-export interface ArticleRO {
-  article: ArticleResponse;
+export interface PostRO {
+  post: PostResponse;
 }
 
-export interface ArticlesRO {
-  articles: ArticleResponse[];
-  articlesCount: number;
+export interface PostsRO {
+  posts: PostResponse[];
+  postsCount: number;
 }
 
 export interface CommentsRO {

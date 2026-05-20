@@ -5,11 +5,11 @@ A simple REST API for a Medium-style blog, built with NestJS, TypeORM, PostgreSQ
 ## Main Features
 
 - Register, login, and update the current user
-- Create, edit, delete, list, and read articles
-- Add comments to articles
-- Favorite articles
+- Create, edit, delete, list, and read posts
+- Add comments to posts
+- Favorite posts
 - Follow author profiles
-- Manage article tags
+- Manage post tags
 
 ## Tech Stack
 
@@ -29,16 +29,16 @@ Base URL: `http://localhost:3000/api`
 | `POST` | `/users/login` | Login |
 | `GET` | `/user` | Current user |
 | `PUT` | `/user` | Update current user |
-| `GET` | `/articles` | List articles |
-| `GET` | `/articles/feed` | Articles from followed authors |
-| `POST` | `/articles` | Create article |
-| `GET` | `/articles/:slug` | Read article |
-| `PUT` | `/articles/:slug` | Update article |
-| `DELETE` | `/articles/:slug` | Delete article |
-| `POST` | `/articles/:slug/comments` | Add comment |
-| `DELETE` | `/articles/:slug/comments/:id` | Delete comment |
-| `POST` | `/articles/:slug/favorite` | Favorite article |
-| `DELETE` | `/articles/:slug/favorite` | Unfavorite article |
+| `GET` | `/posts` | List posts |
+| `GET` | `/posts/feed` | Posts from followed authors |
+| `POST` | `/posts` | Create post |
+| `GET` | `/posts/:slug` | Read post |
+| `PUT` | `/posts/:slug` | Update post |
+| `DELETE` | `/posts/:slug` | Delete post |
+| `POST` | `/posts/:slug/comments` | Add comment |
+| `DELETE` | `/posts/:slug/comments/:id` | Delete comment |
+| `POST` | `/posts/:slug/favorite` | Favorite post |
+| `DELETE` | `/posts/:slug/favorite` | Unfavorite post |
 | `GET` | `/profiles/:username` | Read profile |
 | `POST` | `/profiles/:username/follow` | Follow profile |
 | `DELETE` | `/profiles/:username/follow` | Unfollow profile |
@@ -55,7 +55,7 @@ src/
 ├── common/                # Shared decorators and guards
 ├── database/              # Database configuration
 ├── modules/               # Feature modules grouped by domain
-│   ├── article/
+│   ├── post/
 │   │   ├── controllers/
 │   │   ├── dto/
 │   │   ├── entities/

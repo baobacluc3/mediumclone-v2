@@ -1,9 +1,9 @@
 import { Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 
-import { ArticleController } from "./article.controller";
-import { ArticleService } from "./article.service";
-import { ArticleEntity } from "./article.entity";
+import { PostController } from "./post.controller";
+import { PostService } from "./post.service";
+import { PostEntity } from "./post.entity";
 import { UserEntity } from "../user/user.entity";
 import { FollowsEntity } from "../profile/follows.entity";
 import { UserModule } from "../user/user.module";
@@ -12,14 +12,14 @@ import { TagEntity } from "../tag/tag.entity";
 @Module({
   imports: [
     TypeOrmModule.forFeature([
-      ArticleEntity,
+      PostEntity,
       UserEntity,
       FollowsEntity,
       TagEntity,
     ]),
     UserModule,
   ],
-  providers: [ArticleService],
-  controllers: [ArticleController],
+  providers: [PostService],
+  controllers: [PostController],
 })
-export class ArticleModule {}
+export class PostModule {}

@@ -8,22 +8,22 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { DeleteResult, In, Repository } from "typeorm";
 import slugify from "slug";
 
-import { ArticleEntity } from "./article.entity";
+import { PostEntity } from "./post.entity";
 import { UserEntity } from "../user/user.entity";
 import { FollowsEntity } from "../profile/follows.entity";
 import { TagEntity } from "../tag/tag.entity";
-import { CreateArticleDto, ArticleQueryDto } from "./dto";
+import { CreatePostDto, PostQueryDto } from "./dto";
 import {
-  ArticleResponse,
-  ArticleRO,
-  ArticlesRO,
-} from "./article.interface";
+  PostResponse,
+  PostRO,
+  PostsRO,
+} from "./post.interface";
 
 @Injectable()
-export class ArticleService {
+export class PostService {
   constructor(
-    @InjectRepository(ArticleEntity)
-    private readonly articleRepository: Repository<ArticleEntity>,
+    @InjectRepository(PostEntity)
+    private readonly postRepository: Repository<PostEntity>,
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
     @InjectRepository(FollowsEntity)
@@ -32,15 +32,15 @@ export class ArticleService {
     private readonly tagRepository: Repository<TagEntity>,
   ) {}
 
-  async findAll(query: ArticleQueryDto): Promise<ArticlesRO> {
-    const qb = this.articleRepository
-      .createQueryBuilder("article")
-      .leftJoinAndSelect("article.author", "author")
-      .leftJoinAndSelect("article.tags", "tags")
-      .orderBy("article.createdAt", "DESC");
+  async findAll(query: PostQueryDto): Promise<PostsRO> {
+    const qb = this.postRepository
+      .createQueryBuilder("post")
+      .leftJoinAndSelect("post.author", "author")
+      .leftJoinAndSelect("post.tags", "tags")
+      .orderBy("post.createdAt", "DESC");
 
     if (query.tag) {
-      qb.innerJoin("article.tags", "filterTag", "filterTag.name = :tag", {
+      qb.innerJoin("post.tags", "filterTag", "filterTag.name = :tag", {
         tag: query.tag,
       });
     }
@@ -49,8 +49,8 @@ export class ArticleService {
       const author = await this.userRepository.findOneBy({
         username: query.author,
       });
-      if (!author) return { articles: [], articlesCount: 0 };
-      qb.andWhere("article.authorId = :id", { id: author.id });
+      if (!author) return { posts: [], postsCount: 0 };
+      qb.andWhere("post.authorId = :id", { id: author.id });
     }
 
     if (query.favorited) {
@@ -58,65 +58,65 @@ export class ArticleService {
         where: { username: query.favorited },
         relations: ["favorites"],
       });
-      if (!user) return { articles: [], articlesCount: 0 };
+      if (!user) return { posts: [], postsCount: 0 };
       const ids = user.favorites.map((a) => a.id);
-      if (ids.length === 0) return { articles: [], articlesCount: 0 };
-      qb.andWhere("article.id IN (:...ids)", { ids });
+      if (ids.length === 0) return { posts: [], postsCount: 0 };
+      qb.andWhere("post.id IN (:...ids)", { ids });
     }
 
-    const articlesCount = await qb.getCount();
+    const postsCount = await qb.getCount();
     qb.skip(query.offset).take(query.limit);
-    const articles = await qb.getMany();
+    const posts = await qb.getMany();
 
     return {
-      articles: articles.map((article) => this.toArticleResponse(article)),
-      articlesCount,
+      posts: posts.map((post) => this.toPostResponse(post)),
+      postsCount,
     };
   }
 
-  async findFeed(userId: number, query: ArticleQueryDto): Promise<ArticlesRO> {
+  async findFeed(userId: number, query: PostQueryDto): Promise<PostsRO> {
     const follows = await this.followsRepository.findBy({ followerId: userId });
 
     if (!follows.length) {
-      return { articles: [], articlesCount: 0 };
+      return { posts: [], postsCount: 0 };
     }
 
     const ids = follows.map((f) => f.followingId);
 
-    const qb = this.articleRepository
-      .createQueryBuilder("article")
-      .leftJoinAndSelect("article.author", "author")
-      .leftJoinAndSelect("article.tags", "tags")
-      .where("article.authorId IN (:...ids)", { ids })
-      .orderBy("article.createdAt", "DESC");
+    const qb = this.postRepository
+      .createQueryBuilder("post")
+      .leftJoinAndSelect("post.author", "author")
+      .leftJoinAndSelect("post.tags", "tags")
+      .where("post.authorId IN (:...ids)", { ids })
+      .orderBy("post.createdAt", "DESC");
 
-    const articlesCount = await qb.getCount();
+    const postsCount = await qb.getCount();
     qb.skip(query.offset).take(query.limit);
-    const articles = await qb.getMany();
+    const posts = await qb.getMany();
 
     return {
-      articles: articles.map((article) => this.toArticleResponse(article)),
-      articlesCount,
+      posts: posts.map((post) => this.toPostResponse(post)),
+      postsCount,
     };
   }
 
-  async findOne(slug: string): Promise<ArticleRO> {
-    const article = await this.findArticleOrFail(slug, ["author", "tags"]);
+  async findOne(slug: string): Promise<PostRO> {
+    const post = await this.findPostOrFail(slug, ["author", "tags"]);
 
-    if (!article) {
-      throw new NotFoundException(`Article with slug "${slug}" not found`);
+    if (!post) {
+      throw new NotFoundException(`Post with slug "${slug}" not found`);
     }
 
-    return { article: this.toArticleResponse(article) };
+    return { post: this.toPostResponse(post) };
   }
 
-  async create(userId: number, dto: CreateArticleDto): Promise<ArticleRO> {
+  async create(userId: number, dto: CreatePostDto): Promise<PostRO> {
     const author = await this.userRepository.findOneBy({ id: userId });
 
     if (!author) throw new NotFoundException("User not found");
 
     const tags = await this.resolveTags(dto.tagList ?? []);
-    const article = this.articleRepository.create({
+    const post = this.postRepository.create({
       slug: this.generateSlug(dto.title),
       title: dto.title,
       description: dto.description,
@@ -125,48 +125,48 @@ export class ArticleService {
       author,
     });
 
-    const saved = await this.articleRepository.save(article);
-    return { article: this.toArticleResponse(saved) };
+    const saved = await this.postRepository.save(post);
+    return { post: this.toPostResponse(saved) };
   }
 
   async update(
     slug: string,
     userId: number,
-    dto: Partial<CreateArticleDto>,
-  ): Promise<ArticleRO> {
-    const article = await this.findArticleOrFail(slug, ["author", "tags"]);
+    dto: Partial<CreatePostDto>,
+  ): Promise<PostRO> {
+    const post = await this.findPostOrFail(slug, ["author", "tags"]);
 
-    if (!article) throw new NotFoundException("Article not found");
-    if (article.author.id !== userId)
-      throw new ForbiddenException("You can only edit your own articles");
+    if (!post) throw new NotFoundException("Post not found");
+    if (post.author.id !== userId)
+      throw new ForbiddenException("You can only edit your own posts");
 
-    if (dto.title && dto.title !== article.title) {
-      article.slug = this.generateSlug(dto.title);
+    if (dto.title && dto.title !== post.title) {
+      post.slug = this.generateSlug(dto.title);
     }
 
-    const { tagList, ...articleUpdates } = dto;
-    Object.assign(article, articleUpdates);
+    const { tagList, ...postUpdates } = dto;
+    Object.assign(post, postUpdates);
 
     if (tagList) {
-      article.tags = await this.resolveTags(tagList);
+      post.tags = await this.resolveTags(tagList);
     }
 
-    const updated = await this.articleRepository.save(article);
+    const updated = await this.postRepository.save(post);
 
-    return { article: this.toArticleResponse(updated) };
+    return { post: this.toPostResponse(updated) };
   }
 
   async delete(slug: string, userId: number): Promise<DeleteResult> {
-    const article = await this.findArticleOrFail(slug, ["author"]);
+    const post = await this.findPostOrFail(slug, ["author"]);
 
-    if (!article) throw new NotFoundException("Article not found");
-    if (article.author.id !== userId)
-      throw new ForbiddenException("You can only delete your own articles");
+    if (!post) throw new NotFoundException("Post not found");
+    if (post.author.id !== userId)
+      throw new ForbiddenException("You can only delete your own posts");
 
-    return this.articleRepository.delete({ slug });
+    return this.postRepository.delete({ slug });
   }
 
-  async favorite(userId: number, slug: string): Promise<ArticleRO> {
+  async favorite(userId: number, slug: string): Promise<PostRO> {
     return this.setFavorite(userId, slug, true);
   }
 
@@ -174,10 +174,10 @@ export class ArticleService {
     userId: number,
     slug: string,
     shouldFavorite: boolean,
-  ): Promise<ArticleRO> {
-    const article = await this.findArticleOrFail(slug, ["author", "tags"]);
+  ): Promise<PostRO> {
+    const post = await this.findPostOrFail(slug, ["author", "tags"]);
 
-    if (!article) throw new NotFoundException("Article not found");
+    if (!post) throw new NotFoundException("Post not found");
 
     const user = await this.userRepository.findOne({
       where: { id: userId },
@@ -186,26 +186,26 @@ export class ArticleService {
 
     if (!user) throw new NotFoundException("User not found");
 
-    const index = user.favorites.findIndex((a) => a.id === article.id);
+    const index = user.favorites.findIndex((a) => a.id === post.id);
     const alreadyFavorited = index >= 0;
 
     if (shouldFavorite && !alreadyFavorited) {
-      user.favorites.push(article);
-      article.favoriteCount++;
+      user.favorites.push(post);
+      post.favoriteCount++;
     }
 
     if (!shouldFavorite && alreadyFavorited) {
       user.favorites.splice(index, 1);
-      article.favoriteCount = Math.max(0, article.favoriteCount - 1);
+      post.favoriteCount = Math.max(0, post.favoriteCount - 1);
     }
 
     await this.userRepository.save(user);
-    await this.articleRepository.save(article);
+    await this.postRepository.save(post);
 
-    return { article: this.toArticleResponse(article) };
+    return { post: this.toPostResponse(post) };
   }
 
-  async unFavorite(userId: number, slug: string): Promise<ArticleRO> {
+  async unFavorite(userId: number, slug: string): Promise<PostRO> {
     return this.setFavorite(userId, slug, false);
   }
 
@@ -248,13 +248,13 @@ export class ArticleService {
     return [...new Set(normalized)];
   }
 
-  private toArticleResponse(article: ArticleEntity): ArticleResponse {
-    const { tags, ...articleData } = article;
+  private toPostResponse(post: PostEntity): PostResponse {
+    const { tags, ...postData } = post;
 
     return {
-      ...articleData,
+      ...postData,
       tagList: (tags ?? []).map((tag) => tag.name),
-    } as ArticleResponse;
+    } as PostResponse;
   }
 
   private generateSlug(title: string): string {
@@ -262,19 +262,19 @@ export class ArticleService {
     return `${slugify(title, { lower: true })}-${randomSuffix}`;
   }
 
-  private async findArticleOrFail(
+  private async findPostOrFail(
     slug: string,
     relations: string[] = [],
-  ): Promise<ArticleEntity> {
-    const article = await this.articleRepository.findOne({
+  ): Promise<PostEntity> {
+    const post = await this.postRepository.findOne({
       where: { slug },
       relations,
     });
 
-    if (!article) {
-      throw new NotFoundException("Article not found");
+    if (!post) {
+      throw new NotFoundException("Post not found");
     }
 
-    return article;
+    return post;
   }
 }

@@ -6,7 +6,7 @@ import {
   MaxLength,
 } from "class-validator";
 
-export class CreateArticleDto {
+export class CreatePostDto {
   @IsNotEmpty()
   @IsString()
   @MaxLength(255)

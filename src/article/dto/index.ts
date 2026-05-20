@@ -1,3 +1,3 @@
-export { CreateArticleDto } from "./create-article.dto";
+export { CreatePostDto } from "./create-post.dto";
 export { CreateCommentDto } from "./create-comment.dto";
-export { ArticleQueryDto } from "./article-query.dto";
+export { PostQueryDto } from "./post-query.dto";

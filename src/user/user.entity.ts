@@ -9,7 +9,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from "typeorm";
-import { ArticleEntity } from "../article/article.entity";
+import { PostEntity } from "../post/post.entity";
 import { CommentEntity } from "@/comment/comment.entity";
 
 @Entity("user")
@@ -39,12 +39,12 @@ export class UserEntity {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @ManyToMany(() => ArticleEntity)
+  @ManyToMany(() => PostEntity)
   @JoinTable()
-  favorites: ArticleEntity[];
+  favorites: PostEntity[];
 
-  @OneToMany(() => ArticleEntity, (article) => article.author)
-  articles: ArticleEntity[];
+  @OneToMany(() => PostEntity, (post) => post.author)
+  posts: PostEntity[];
 
   comments: CommentEntity[];
 }

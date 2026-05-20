@@ -2,28 +2,28 @@ import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/commo
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
-import { Comment } from "../article/comment.entity";
-import { ArticleEntity } from "../article/article.entity";
+import { Comment } from "../post/comment.entity";
+import { PostEntity } from "../post/post.entity";
 import { UserEntity } from "../user/user.entity";
-import { CreateCommentDto } from "../article/dto";
-import { CommentsRO } from "../article/article.interface";
+import { CreateCommentDto } from "../post/dto";
+import { CommentsRO } from "../post/post.interface";
 
 @Injectable()
 export class CommentService {
   constructor(
     @InjectRepository(Comment)
     private readonly commentRepository: Repository<Comment>,
-    @InjectRepository(ArticleEntity)
-    private readonly articleRepository: Repository<ArticleEntity>,
+    @InjectRepository(PostEntity)
+    private readonly postRepository: Repository<PostEntity>,
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
   ) {}
 
   async findComments(slug: string): Promise<CommentsRO> {
-    const article = await this.articleRepository.findOne({ where: { slug } });
-    if (!article) throw new NotFoundException("Article not found");
+    const post = await this.postRepository.findOne({ where: { slug } });
+    if (!post) throw new NotFoundException("Post not found");
 
-    return { comments: article.comments };
+    return { comments: post.comments };
   }
 
   async createComment(
@@ -31,15 +31,15 @@ export class CommentService {
     userId: number,
     dto: CreateCommentDto,
   ): Promise<CommentsRO> {
-    const article = await this.articleRepository.findOne({ where: { slug } });
-    if (!article) throw new NotFoundException("Article not found");
+    const post = await this.postRepository.findOne({ where: { slug } });
+    if (!post) throw new NotFoundException("Post not found");
 
     const author = await this.userRepository.findOneBy({ id: userId });
     if (!author) throw new NotFoundException("User not found");
 
     const comment = this.commentRepository.create({
       body: dto.body,
-      article,
+      post,
       author,
     });
 
@@ -53,8 +53,8 @@ export class CommentService {
     commentId: number,
     userId: number,
   ): Promise<CommentsRO> {
-    const article = await this.articleRepository.findOne({ where: { slug } });
-    if (!article) throw new NotFoundException("Article not found");
+    const post = await this.postRepository.findOne({ where: { slug } });
+    if (!post) throw new NotFoundException("Post not found");
 
     const comment = await this.commentRepository.findOne({
       where: { id: commentId },

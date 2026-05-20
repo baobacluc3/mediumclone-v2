@@ -1,4 +1,4 @@
-import { ArticleEntity } from "@/article/article.entity";
+import { PostEntity } from "@/post/post.entity";
 import { UserEntity } from "@/user/user.entity";
 import { JoinColumn, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
 
@@ -20,9 +20,9 @@ export class CommentEntity {
   @JoinColumn({ name: "authorId" })
   author: UserEntity;
 
-  @ManyToOne(() => ArticleEntity, (article) => article.comments, {
+  @ManyToOne(() => PostEntity, (post) => post.comments, {
     onDelete: "CASCADE",
   })
-  @JoinColumn({ name: "articleId" })
-  post: ArticleEntity;
+  @JoinColumn({ name: "postId" })
+  post: PostEntity;
 }

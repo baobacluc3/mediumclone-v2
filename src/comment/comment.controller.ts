@@ -11,13 +11,13 @@ import {
   UseGuards,
 } from "@nestjs/common";
 
-import { CreateCommentDto } from "../article/dto";
-import { CommentsRO } from "../article/article.interface";
+import { CreateCommentDto } from "../post/dto";
+import { CommentsRO } from "../post/post.interface";
 import { User } from "../common/decorators/user.decorator";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { CommentService } from "./comment.service";
 
-@Controller("articles/:slug/comments")
+@Controller("posts/:slug/comments")
 export class CommentController {
   constructor(private readonly commentService: CommentService) {}
 
