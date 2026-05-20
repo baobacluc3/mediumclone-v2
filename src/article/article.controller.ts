@@ -13,33 +13,33 @@ import {
   UseGuards,
 } from "@nestjs/common";
 
-import { ArticleService } from "./article.service";
-import { CreateArticleDto, ArticleQueryDto } from "./dto";
-import { ArticlesRO, ArticleRO } from "./article.interface";
+import { PostService } from "./post.service";
+import { CreatePostDto, PostQueryDto } from "./dto";
+import { PostsRO, PostRO } from "./post.interface";
 import { User } from "../common/decorators/user.decorator";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 
-@Controller("articles")
-export class ArticleController {
-  constructor(private readonly articleService: ArticleService) {}
+@Controller("posts")
+export class PostController {
+  constructor(private readonly postService: PostService) {}
 
   @Get()
-  findAll(@Query() query: ArticleQueryDto): Promise<ArticlesRO> {
-    return this.articleService.findAll(query);
+  findAll(@Query() query: PostQueryDto): Promise<PostsRO> {
+    return this.postService.findAll(query);
   }
 
   @Get("feed")
   @UseGuards(JwtAuthGuard)
   getFeed(
     @User("id") userId: number,
-    @Query() query: ArticleQueryDto,
-  ): Promise<ArticlesRO> {
-    return this.articleService.findFeed(userId, query);
+    @Query() query: PostQueryDto,
+  ): Promise<PostsRO> {
+    return this.postService.findFeed(userId, query);
   }
 
   @Get(":slug")
-  findOne(@Param("slug") slug: string): Promise<ArticleRO> {
-    return this.articleService.findOne(slug);
+  findOne(@Param("slug") slug: string): Promise<PostRO> {
+    return this.postService.findOne(slug);
   }
 
   @Post(":slug/favorite")
@@ -47,8 +47,8 @@ export class ArticleController {
   favorite(
     @User("id") userId: number,
     @Param("slug") slug: string,
-  ): Promise<ArticleRO> {
-    return this.articleService.favorite(userId, slug);
+  ): Promise<PostRO> {
+    return this.postService.favorite(userId, slug);
   }
 
   @HttpCode(HttpStatus.OK)
@@ -57,7 +57,7 @@ export class ArticleController {
   unFavorite(
     @User("id") userId: number,
     @Param("slug") slug: string,
-  ): Promise<ArticleRO> {
-    return this.articleService.unFavorite(userId, slug);
+  ): Promise<PostRO> {
+    return this.postService.unFavorite(userId, slug);
   }
 }

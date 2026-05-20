@@ -1,7 +1,7 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
-import { ArticleModule } from "./article/article.module";
+import { PostModule } from "./post/post.module";
 import { getTypeOrmOptions } from "./database/typeorm.config";
 import { ProfileModule } from "./profile/profile.module";
 import { TagModule } from "./tag/tag.module";
@@ -14,7 +14,7 @@ import { CommentModule } from "./comment/comment.module";
     ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRoot(getTypeOrmOptions()),
     UserModule,
-    ArticleModule,
+    PostModule,
     ProfileModule,
     TagModule,
     AuthModule,

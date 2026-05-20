@@ -14,8 +14,8 @@ import { UserEntity } from "../user/user.entity";
 import { TagEntity } from "../tag/tag.entity";
 import { Comment } from "./comment.entity";
 
-@Entity("articles")
-export class ArticleEntity {
+@Entity("posts")
+export class PostEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -33,8 +33,8 @@ export class ArticleEntity {
 
   @ManyToMany(() => TagEntity)
   @JoinTable({
-    name: "article_tags",
-    joinColumn: { name: "articleId", referencedColumnName: "id" },
+    name: "post_tags",
+    joinColumn: { name: "postId", referencedColumnName: "id" },
     inverseJoinColumn: { name: "tagId", referencedColumnName: "id" },
   })
   tags: TagEntity[];
@@ -48,10 +48,10 @@ export class ArticleEntity {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @ManyToOne(() => UserEntity, (user) => user.articles, { eager: false })
+  @ManyToOne(() => UserEntity, (user) => user.posts, { eager: false })
   author: UserEntity;
 
-  @OneToMany(() => Comment, (comment) => comment.article, {
+  @OneToMany(() => Comment, (comment) => comment.post, {
     eager: true,
     cascade: true,
   })

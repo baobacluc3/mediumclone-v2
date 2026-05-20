@@ -5,7 +5,7 @@ import {
   ManyToOne,
   CreateDateColumn,
 } from "typeorm";
-import { ArticleEntity } from "./article.entity";
+import { PostEntity } from "./post.entity";
 import { UserEntity } from "../user/user.entity";
 
 @Entity("comments")
@@ -19,10 +19,10 @@ export class Comment {
   @CreateDateColumn()
   createdAt: Date;
 
-  @ManyToOne(() => ArticleEntity, (article) => article.comments, {
+  @ManyToOne(() => PostEntity, (post) => post.comments, {
     onDelete: "CASCADE",
   })
-  article: ArticleEntity;
+  post: PostEntity;
 
   @ManyToOne(() => UserEntity, { eager: true, nullable: true })
   author: UserEntity;
