@@ -9,16 +9,14 @@ import { DeleteResult, In, Repository } from "typeorm";
 import slugify from "slug";
 
 import { ArticleEntity } from "./article.entity";
-import { Comment } from "./comment.entity";
 import { UserEntity } from "../user/user.entity";
 import { FollowsEntity } from "../profile/follows.entity";
 import { TagEntity } from "../tag/tag.entity";
-import { CreateArticleDto, CreateCommentDto, ArticleQueryDto } from "./dto";
+import { CreateArticleDto, ArticleQueryDto } from "./dto";
 import {
   ArticleResponse,
   ArticleRO,
   ArticlesRO,
-  CommentsRO,
 } from "./article.interface";
 
 @Injectable()
@@ -26,8 +24,6 @@ export class ArticleService {
   constructor(
     @InjectRepository(ArticleEntity)
     private readonly articleRepository: Repository<ArticleEntity>,
-    @InjectRepository(Comment)
-    private readonly commentRepository: Repository<Comment>,
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
     @InjectRepository(FollowsEntity)
@@ -168,59 +164,6 @@ export class ArticleService {
       throw new ForbiddenException("You can only delete your own articles");
 
     return this.articleRepository.delete({ slug });
-  }
-
-  async addComment(
-    slug: string,
-    userId: number,
-    dto: CreateCommentDto,
-  ): Promise<ArticleRO> {
-    const article = await this.findArticleOrFail(slug);
-    if (!article) throw new NotFoundException("Article not found");
-
-    const author = await this.userRepository.findOneBy({ id: userId });
-    if (!author) throw new NotFoundException("User not found");
-
-    const comment = this.commentRepository.create({
-      body: dto.body,
-      article,
-      author,
-    });
-
-    await this.commentRepository.save(comment);
-
-    return { article: this.toArticleResponse(article) };
-  }
-
-  async deleteComment(
-    slug: string,
-    commentId: number,
-    userId: number,
-  ): Promise<CommentsRO> {
-    const article = await this.articleRepository.findOne({ where: { slug } });
-    if (!article) throw new NotFoundException("Article not found");
-
-    const comment = await this.commentRepository.findOne({
-      where: { id: commentId },
-      relations: ["author"],
-    });
-
-    if (!comment) throw new NotFoundException("Comment not found");
-    if (comment.author?.id !== userId)
-      throw new ForbiddenException("You can only delete your own comments");
-
-    await this.commentRepository.delete(commentId);
-
-    const updated = await this.articleRepository.findOne({ where: { slug } });
-    if (!updated) throw new NotFoundException("Article not found");
-
-    return { comments: updated.comments };
-  }
-
-  async findComments(slug: string): Promise<CommentsRO> {
-    const article = await this.articleRepository.findOne({ where: { slug } });
-    if (!article) throw new NotFoundException("Article not found");
-    return { comments: article.comments };
   }
 
   async favorite(userId: number, slug: string): Promise<ArticleRO> {

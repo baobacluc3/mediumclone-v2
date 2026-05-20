@@ -4,7 +4,6 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { ArticleController } from "./article.controller";
 import { ArticleService } from "./article.service";
 import { ArticleEntity } from "./article.entity";
-import { Comment } from "./comment.entity";
 import { UserEntity } from "../user/user.entity";
 import { FollowsEntity } from "../profile/follows.entity";
 import { UserModule } from "../user/user.module";
@@ -14,7 +13,6 @@ import { TagEntity } from "../tag/tag.entity";
   imports: [
     TypeOrmModule.forFeature([
       ArticleEntity,
-      Comment,
       UserEntity,
       FollowsEntity,
       TagEntity,

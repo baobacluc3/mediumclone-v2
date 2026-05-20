@@ -7,6 +7,7 @@ import { ProfileModule } from "./profile/profile.module";
 import { TagModule } from "./tag/tag.module";
 import { UserModule } from "./user/user.module";
 import { AuthModule } from "./auth/auth.module";
+import { CommentModule } from "./comment/comment.module";
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { AuthModule } from "./auth/auth.module";
     ProfileModule,
     TagModule,
     AuthModule,
+    CommentModule,
   ],
 })
 export class ApplicationModule {}
