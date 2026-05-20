@@ -5,6 +5,14 @@ import { ApplicationModule } from "./app.module";
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(ApplicationModule);
 
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
+
   app.setGlobalPrefix("api");
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
@@ -12,3 +20,7 @@ async function bootstrap(): Promise<void> {
 }
 
 bootstrap();
+
+/*
+
+*/

@@ -1,5 +1,5 @@
+import { CommentEntity } from "@/comment/comment.entity";
 import { PostEntity } from "./post.entity";
-import { Comment } from "./comment.entity";
 
 export type PostResponse = Omit<PostEntity, "tags"> & {
   tagList: string[];
@@ -15,5 +15,5 @@ export interface PostsRO {
 }
 
 export interface CommentsRO {
-  comments: Comment[];
+  comments: CommentEntity[];
 }

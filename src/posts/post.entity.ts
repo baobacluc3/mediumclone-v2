@@ -12,7 +12,7 @@ import {
 } from "typeorm";
 import { UserEntity } from "../user/user.entity";
 import { TagEntity } from "../tag/tag.entity";
-import { Comment } from "./comment.entity";
+import { CommentEntity } from "@/comment/comment.entity";
 
 @Entity("posts")
 export class PostEntity {
@@ -51,10 +51,9 @@ export class PostEntity {
   @ManyToOne(() => UserEntity, (user) => user.posts, { eager: false })
   author: UserEntity;
 
-  @OneToMany(() => Comment, (comment) => comment.post, {
-    eager: true,
+  @OneToMany(() => CommentEntity, (comment) => comment.post, {
     cascade: true,
   })
   @JoinColumn()
-  comments: Comment[];
+  comments: CommentEntity[];
 }

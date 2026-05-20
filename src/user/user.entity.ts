@@ -9,8 +9,8 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from "typeorm";
-import { PostEntity } from "../post/post.entity";
 import { CommentEntity } from "@/comment/comment.entity";
+import { PostEntity } from "@/posts/post.entity";
 
 @Entity("user")
 export class UserEntity {
@@ -21,7 +21,6 @@ export class UserEntity {
   username: string;
 
   @Column({ unique: true })
-  @IsEmail()
   email: string;
 
   @Column({ default: "" })
@@ -43,8 +42,9 @@ export class UserEntity {
   @JoinTable()
   favorites: PostEntity[];
 
-  @OneToMany(() => PostEntity, (post) => post.author)
+  @OneToMany(() => PostEntity, (post: PostEntity) => post.author)
   posts: PostEntity[];
 
+  @OneToMany(() => CommentEntity, (comment) => comment.author)
   comments: CommentEntity[];
 }
