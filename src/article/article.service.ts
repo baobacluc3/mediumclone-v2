@@ -5,7 +5,7 @@ import {
   ForbiddenException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { DataSource, DeleteResult, In, Repository } from "typeorm";
+import { DeleteResult, In, Repository } from "typeorm";
 import slugify from "slug";
 
 import { ArticleEntity } from "./article.entity";
@@ -34,12 +34,10 @@ export class ArticleService {
     private readonly followsRepository: Repository<FollowsEntity>,
     @InjectRepository(TagEntity)
     private readonly tagRepository: Repository<TagEntity>,
-    private readonly dataSource: DataSource,
   ) {}
 
   async findAll(query: ArticleQueryDto): Promise<ArticlesRO> {
-    const qb = this.dataSource
-      .getRepository(ArticleEntity)
+    const qb = this.articleRepository
       .createQueryBuilder("article")
       .leftJoinAndSelect("article.author", "author")
       .leftJoinAndSelect("article.tags", "tags")
@@ -89,8 +87,7 @@ export class ArticleService {
 
     const ids = follows.map((f) => f.followingId);
 
-    const qb = this.dataSource
-      .getRepository(ArticleEntity)
+    const qb = this.articleRepository
       .createQueryBuilder("article")
       .leftJoinAndSelect("article.author", "author")
       .leftJoinAndSelect("article.tags", "tags")
@@ -108,10 +105,7 @@ export class ArticleService {
   }
 
   async findOne(slug: string): Promise<ArticleRO> {
-    const article = await this.articleRepository.findOne({
-      where: { slug },
-      relations: ["author", "tags"],
-    });
+    const article = await this.findArticleOrFail(slug, ["author", "tags"]);
 
     if (!article) {
       throw new NotFoundException(`Article with slug "${slug}" not found`);
@@ -121,10 +115,7 @@ export class ArticleService {
   }
 
   async create(userId: number, dto: CreateArticleDto): Promise<ArticleRO> {
-    const author = await this.userRepository.findOne({
-      where: { id: userId },
-      relations: ["articles"],
-    });
+    const author = await this.userRepository.findOneBy({ id: userId });
 
     if (!author) throw new NotFoundException("User not found");
 
@@ -135,7 +126,6 @@ export class ArticleService {
       description: dto.description,
       body: dto.body,
       tags,
-      comments: [],
       author,
     });
 
@@ -148,10 +138,7 @@ export class ArticleService {
     userId: number,
     dto: Partial<CreateArticleDto>,
   ): Promise<ArticleRO> {
-    const article = await this.articleRepository.findOne({
-      where: { slug },
-      relations: ["author", "tags"],
-    });
+    const article = await this.findArticleOrFail(slug, ["author", "tags"]);
 
     if (!article) throw new NotFoundException("Article not found");
     if (article.author.id !== userId)
@@ -174,10 +161,7 @@ export class ArticleService {
   }
 
   async delete(slug: string, userId: number): Promise<DeleteResult> {
-    const article = await this.articleRepository.findOne({
-      where: { slug },
-      relations: ["author"],
-    });
+    const article = await this.findArticleOrFail(slug, ["author"]);
 
     if (!article) throw new NotFoundException("Article not found");
     if (article.author.id !== userId)
@@ -191,7 +175,7 @@ export class ArticleService {
     userId: number,
     dto: CreateCommentDto,
   ): Promise<ArticleRO> {
-    const article = await this.articleRepository.findOne({ where: { slug } });
+    const article = await this.findArticleOrFail(slug);
     if (!article) throw new NotFoundException("Article not found");
 
     const author = await this.userRepository.findOneBy({ id: userId });
@@ -204,16 +188,8 @@ export class ArticleService {
     });
 
     await this.commentRepository.save(comment);
-    const updated = await this.articleRepository.findOne({
-      where: { slug },
-      relations: ["author", "tags"],
-    });
 
-    if (!updated) {
-      throw new NotFoundException("Article not found after comment creation");
-    }
-
-    return { article: this.toArticleResponse(updated) };
+    return { article: this.toArticleResponse(article) };
   }
 
   async deleteComment(
@@ -248,10 +224,16 @@ export class ArticleService {
   }
 
   async favorite(userId: number, slug: string): Promise<ArticleRO> {
-    const article = await this.articleRepository.findOne({
-      where: { slug },
-      relations: ["author", "tags"],
-    });
+    return this.setFavorite(userId, slug, true);
+  }
+
+  private async setFavorite(
+    userId: number,
+    slug: string,
+    shouldFavorite: boolean,
+  ): Promise<ArticleRO> {
+    const article = await this.findArticleOrFail(slug, ["author", "tags"]);
+
     if (!article) throw new NotFoundException("Article not found");
 
     const user = await this.userRepository.findOne({
@@ -261,39 +243,27 @@ export class ArticleService {
 
     if (!user) throw new NotFoundException("User not found");
 
-    const alreadyFavorited = user.favorites.some((a) => a.id === article.id);
-    if (!alreadyFavorited) {
+    const index = user.favorites.findIndex((a) => a.id === article.id);
+    const alreadyFavorited = index >= 0;
+
+    if (shouldFavorite && !alreadyFavorited) {
       user.favorites.push(article);
       article.favoriteCount++;
-      await this.userRepository.save(user);
-      await this.articleRepository.save(article);
     }
+
+    if (!shouldFavorite && alreadyFavorited) {
+      user.favorites.splice(index, 1);
+      article.favoriteCount = Math.max(0, article.favoriteCount - 1);
+    }
+
+    await this.userRepository.save(user);
+    await this.articleRepository.save(article);
 
     return { article: this.toArticleResponse(article) };
   }
 
   async unFavorite(userId: number, slug: string): Promise<ArticleRO> {
-    const article = await this.articleRepository.findOne({
-      where: { slug },
-      relations: ["author", "tags"],
-    });
-    if (!article) throw new NotFoundException("Article not found");
-
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
-      relations: ["favorites"],
-    });
-    if (!user) throw new NotFoundException("User not found");
-
-    const idx = user.favorites.findIndex((a) => a.id === article.id);
-    if (idx >= 0) {
-      user.favorites.splice(idx, 1);
-      article.favoriteCount = Math.max(0, article.favoriteCount - 1);
-      await this.userRepository.save(user);
-      await this.articleRepository.save(article);
-    }
-
-    return { article: this.toArticleResponse(article) };
+    return this.setFavorite(userId, slug, false);
   }
 
   private async resolveTags(tagList: string[]): Promise<TagEntity[]> {
@@ -347,5 +317,21 @@ export class ArticleService {
   private generateSlug(title: string): string {
     const randomSuffix = ((Math.random() * Math.pow(36, 6)) | 0).toString(36);
     return `${slugify(title, { lower: true })}-${randomSuffix}`;
+  }
+
+  private async findArticleOrFail(
+    slug: string,
+    relations: string[] = [],
+  ): Promise<ArticleEntity> {
+    const article = await this.articleRepository.findOne({
+      where: { slug },
+      relations,
+    });
+
+    if (!article) {
+      throw new NotFoundException("Article not found");
+    }
+
+    return article;
   }
 }
