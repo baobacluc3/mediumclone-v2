@@ -50,18 +50,3 @@ export class CommentVote {
   @UpdateDateColumn()
   updatedAt: Date;
 }
-
-/*
-Why separate votes into another table?
-Good:
-•	prevents duplicate votes with UNIQUE(commentId, userId)
-•	allows changing votes
-•	allows showing current user vote
-•	avoids storing user IDs inside a comment row
-Bad:
-•	more joins
-•	more transaction logic
-•	more indexes
-But for production-style design, this is the correct direction.
-
-*/
