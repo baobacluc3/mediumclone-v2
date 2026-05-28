@@ -1,0 +1,2 @@
+@tailwind base;@tailwind components;@tailwind utilities;
+body{@apply bg-white text-gray-800}button{@apply border px-2 py-1 rounded}

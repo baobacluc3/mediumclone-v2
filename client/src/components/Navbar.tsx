@@ -1,0 +1,2 @@
+import { Link } from 'react-router-dom'; import { useAuthStore } from '../store/authStore';
+export default function Navbar(){ const {token,user}=useAuthStore(); return <nav className='p-4 border-b flex justify-between'><Link to='/'>MediumClone</Link><div className='flex gap-3'>{token?<><Link to='/editor'>New Post</Link><Link to='/settings'>Settings</Link><Link to={`/profile/${user?.username||''}`}>{user?.username||'Profile'}</Link></>:<><Link to='/login'>Sign in</Link><Link to='/register'>Sign up</Link></>}</div></nav> }
