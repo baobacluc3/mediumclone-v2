@@ -12,39 +12,38 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from "typeorm";
+import { CommentVote } from "./comment-vote.entity";
+
+export enum CommentStatus {
+  ACTIVE = "active",
+  DELETED = "deleted",
+  REMOVED = "removed",
+  SPAM = "spam",
+}
 
 @Entity("comments")
 @Index(["postId", "parentId", "createdAt"])
 @Index(["postId", "parentId", "score"])
 @Index(["postId", "rootId"])
 @Index(["authorId", "createdAt"])
-
-export enum CommentStatus {
-  ACTIVE = 'active', 
-  DELETED = 'deleted',
-
-  REMOVED = 'removed',
-  SPAM = 'spam',
-}
-
 export class CommentEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
-  content: string;
+  @Column({ type: "text" })
+  body: string;
 
   @Column()
-  postId: number; 
+  postId: number;
 
   @Column()
-  authorId: number; 
+  authorId: number;
 
   @Column({ nullable: true })
   parentId?: number;
 
   @Column({ nullable: true })
-  rootId: string | null;
+  rootId: number | null;
 
   @Column({ type: "int", default: 0 })
   depth: number;
@@ -68,7 +67,11 @@ export class CommentEntity {
   @Column({ type: "int", default: 0 })
   score: number;
 
+  @Column({ type: "int", default: 0 })
+  replyCount: number;
 
+  @Column({ type: "timestamp", nullable: true })
+  editedAt: Date | null;
 
   @ManyToOne(() => UserEntity, (user) => user.comments, {
     onDelete: "CASCADE",
@@ -76,6 +79,11 @@ export class CommentEntity {
   @JoinColumn({ name: "authorId" })
   author: UserEntity;
 
+  @ManyToOne(() => PostEntity, (post) => post.comments, {
+    onDelete: "CASCADE",
+  })
+  @JoinColumn({ name: "postId" })
+  post: PostEntity;
 
   @ManyToOne(() => CommentEntity, (comment) => comment.children, {
     nullable: true,
@@ -84,41 +92,18 @@ export class CommentEntity {
   @JoinColumn({ name: "parentId" })
   parent: CommentEntity | null;
 
-
   @OneToMany(() => CommentEntity, (comment) => comment.parent)
   children: CommentEntity[];
 
-@OneToMany(() => CommentVote, (vote) => vote.comment)
-votes: CommentVote[];
+  @OneToMany(() => CommentVote, (vote) => vote.comment)
+  votes: CommentVote[];
 
-@Column({ type: 'int', default: 0 })
-replyCount: number; 
+  @DeleteDateColumn()
+  deletedAt: Date | null;
 
-@Column({ type: 'timestamp', nullable: true })
-editedAt: Date | null; 
+  @CreateDateColumn()
+  createdAt: Date;
 
-
-
-
-@DeleteDateColumn()
-deletedAt: Date | null;
-
-@CreateDateColumn()
-createdAt: Date; 
-
-
-@UpdateDateColumn()
-updatedAt: Date;  
-
-
- @ManyToOne(() => PostEntity, (post) => post.comments, {
-    onDelete: "CASCADE",
-  })
-  @JoinColumn({ name: "postId" })
-  post: PostEntity;
-
-
- 
+  @UpdateDateColumn()
+  updatedAt: Date;
 }
-
-

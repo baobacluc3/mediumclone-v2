@@ -5,12 +5,12 @@ import {
   Get,
   Logger,
   Param,
-  ParseIntPipe,
   Post,
   Put,
   UseGuards,
   ForbiddenException,
 } from "@nestjs/common";
+import { ParsePositiveIntPipe } from "../common/pipes/parse-positive-int.pipe";
 import { CreateUserDto, LoginUserDto, UpdateUserDto } from "./dto";
 import { UserRO } from "./user.interface";
 import { UserService } from "./user.service";
@@ -45,17 +45,17 @@ export class UserController {
 
   @Post("users/login")
   async login(@Body("user") dto: LoginUserDto): Promise<UserRO> {
-    const user = await this.userService.findOne(dto);
+    const response = await this.userService.login(dto);
 
-    this.logger.log(`User logged in: ${user.email}`);
-    return this.userService.buildUserRO(user);
+    this.logger.log(`User logged in: ${dto.email}`);
+    return response;
   }
 
   @Delete("users/:id")
   @UseGuards(JwtAuthGuard)
   async delete(
     @User("id") currentUserId: number,
-    @Param("id", ParseIntPipe) id: number,
+    @Param("id", ParsePositiveIntPipe) id: number,
   ): Promise<void> {
     if (currentUserId !== id) {
       throw new ForbiddenException("You can only delete your own account.");

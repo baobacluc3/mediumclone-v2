@@ -1,18 +1,22 @@
-import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 
-import { Comment } from "../post/comment.entity";
-import { PostEntity } from "../post/post.entity";
+import { PostEntity } from "../posts/post.entity";
 import { UserEntity } from "../user/user.entity";
-import { CreateCommentDto } from "../post/dto";
-import { CommentsRO } from "../post/post.interface";
+import { CreateCommentDto } from "../posts/dto";
+import { CommentsRO } from "../posts/post.interface";
+import { CommentEntity } from "./comment.entity";
 
 @Injectable()
 export class CommentService {
   constructor(
-    @InjectRepository(Comment)
-    private readonly commentRepository: Repository<Comment>,
+    @InjectRepository(CommentEntity)
+    private readonly commentRepository: Repository<CommentEntity>,
     @InjectRepository(PostEntity)
     private readonly postRepository: Repository<PostEntity>,
     @InjectRepository(UserEntity)
@@ -23,7 +27,13 @@ export class CommentService {
     const post = await this.postRepository.findOne({ where: { slug } });
     if (!post) throw new NotFoundException("Post not found");
 
-    return { comments: post.comments };
+    const comments = await this.commentRepository.find({
+      where: { postId: post.id },
+      relations: ["author"],
+      order: { createdAt: "ASC" },
+    });
+
+    return { comments };
   }
 
   async createComment(

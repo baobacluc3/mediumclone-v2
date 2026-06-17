@@ -1,6 +1,6 @@
 # Medium Clone API
 
-A simple REST API for a Medium-style blog, built with NestJS, TypeORM, PostgreSQL, and JWT authentication.
+A simple REST API for a Medium-style blog, built with NestJS, TypeORM, PostgreSQL, Redis caching, and JWT authentication.
 
 ## Main Features
 
@@ -17,6 +17,7 @@ A simple REST API for a Medium-style blog, built with NestJS, TypeORM, PostgreSQ
 - TypeScript
 - TypeORM
 - PostgreSQL
+- Redis
 - JWT authentication
 
 ## API Endpoints
@@ -75,10 +76,13 @@ Feature code is grouped by domain under `src/modules`, while cross-cutting authe
 ```bash
 npm install
 cp .env.example .env
+docker run --name mediumclone-redis -p 6379:6379 -d redis:7-alpine
 npm run start:dev
 ```
 
 The project uses TypeORM `synchronize: true`, so database tables are created automatically while developing.
+
+Redis is used as a cache for frequently read post and tag endpoints. If Redis is not running, the API logs a warning and continues by reading directly from PostgreSQL.
 
 ## Environment Variables
 
@@ -90,7 +94,11 @@ DB_USER=postgres
 DB_PASS=password
 DB_NAME=mediumclone
 JWT_SECRET=change-me
+CACHE_ENABLED=true
+REDIS_URL=redis://localhost:6379
 ```
+
+Set `CACHE_ENABLED=false` if you want to temporarily bypass Redis while debugging.
 
 ## Scripts
 

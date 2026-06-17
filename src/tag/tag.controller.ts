@@ -6,11 +6,11 @@ import {
   HttpCode,
   HttpStatus,
   Param,
-  ParseIntPipe,
   Post,
   Put,
   Query,
 } from "@nestjs/common";
+import { ParsePositiveIntPipe } from "../common/pipes/parse-positive-int.pipe";
 import {
   CreateTagDto,
   PaginatedTagsDto,
@@ -30,7 +30,7 @@ export class TagController {
   }
 
   @Get(":id")
-  findOne(@Param("id", ParseIntPipe) id: number): Promise<TagEntity> {
+  findOne(@Param("id", ParsePositiveIntPipe) id: number): Promise<TagEntity> {
     return this.tagService.findOne(id);
   }
 
@@ -42,7 +42,7 @@ export class TagController {
 
   @Put(":id")
   update(
-    @Param("id", ParseIntPipe) id: number,
+    @Param("id", ParsePositiveIntPipe) id: number,
     @Body() updateTagDto: UpdateTagDto,
   ): Promise<TagEntity> {
     return this.tagService.update(id, updateTagDto);
@@ -50,7 +50,7 @@ export class TagController {
 
   @Delete(":id")
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@Param("id", ParseIntPipe) id: number): Promise<void> {
+  remove(@Param("id", ParsePositiveIntPipe) id: number): Promise<void> {
     return this.tagService.remove(id);
   }
 }

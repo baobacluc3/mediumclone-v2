@@ -13,6 +13,7 @@ import {
 import { UserEntity } from "../user/user.entity";
 import { TagEntity } from "../tag/tag.entity";
 import { CommentEntity } from "@/comment/comment.entity";
+import { Bookmark } from "@/bookmark/bookmark.entity";
 
 @Entity("posts")
 export class PostEntity {
@@ -56,4 +57,7 @@ export class PostEntity {
   })
   @JoinColumn()
   comments: CommentEntity[];
+
+  @OneToMany(() => Bookmark, (bookmark) => bookmark.post)
+  bookmarks: Bookmark[];
 }

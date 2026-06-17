@@ -12,12 +12,12 @@ import { PostEntity } from "./post.entity";
 import { UserEntity } from "../user/user.entity";
 import { FollowsEntity } from "../profile/follows.entity";
 import { TagEntity } from "../tag/tag.entity";
+import { RedisCacheService } from "../cache/redis-cache.service";
 import { CreatePostDto, PostQueryDto } from "./dto";
-import {
-  PostResponse,
-  PostRO,
-  PostsRO,
-} from "./post.interface";
+import { PostResponse, PostRO, PostsRO } from "./post.interface";
+
+const POST_LIST_CACHE_TTL_SECONDS = 60;
+const POST_DETAIL_CACHE_TTL_SECONDS = 300;
 
 @Injectable()
 export class PostService {
@@ -30,48 +30,57 @@ export class PostService {
     private readonly followsRepository: Repository<FollowsEntity>,
     @InjectRepository(TagEntity)
     private readonly tagRepository: Repository<TagEntity>,
+    private readonly cacheService: RedisCacheService,
   ) {}
 
   async findAll(query: PostQueryDto): Promise<PostsRO> {
-    const qb = this.postRepository
-      .createQueryBuilder("post")
-      .leftJoinAndSelect("post.author", "author")
-      .leftJoinAndSelect("post.tags", "tags")
-      .orderBy("post.createdAt", "DESC");
+    const cacheKey = this.buildPostListCacheKey(query);
 
-    if (query.tag) {
-      qb.innerJoin("post.tags", "filterTag", "filterTag.name = :tag", {
-        tag: query.tag,
-      });
-    }
+    return this.cacheService.remember(
+      cacheKey,
+      POST_LIST_CACHE_TTL_SECONDS,
+      async () => {
+        const qb = this.postRepository
+          .createQueryBuilder("post")
+          .leftJoinAndSelect("post.author", "author")
+          .leftJoinAndSelect("post.tags", "tags")
+          .orderBy("post.createdAt", "DESC");
 
-    if (query.author) {
-      const author = await this.userRepository.findOneBy({
-        username: query.author,
-      });
-      if (!author) return { posts: [], postsCount: 0 };
-      qb.andWhere("post.authorId = :id", { id: author.id });
-    }
+        if (query.tag) {
+          qb.innerJoin("post.tags", "filterTag", "filterTag.name = :tag", {
+            tag: query.tag,
+          });
+        }
 
-    if (query.favorited) {
-      const user = await this.userRepository.findOne({
-        where: { username: query.favorited },
-        relations: ["favorites"],
-      });
-      if (!user) return { posts: [], postsCount: 0 };
-      const ids = user.favorites.map((a) => a.id);
-      if (ids.length === 0) return { posts: [], postsCount: 0 };
-      qb.andWhere("post.id IN (:...ids)", { ids });
-    }
+        if (query.author) {
+          const author = await this.userRepository.findOneBy({
+            username: query.author,
+          });
+          if (!author) return { posts: [], postsCount: 0 };
+          qb.andWhere("post.authorId = :id", { id: author.id });
+        }
 
-    const postsCount = await qb.getCount();
-    qb.skip(query.offset).take(query.limit);
-    const posts = await qb.getMany();
+        if (query.favorited) {
+          const user = await this.userRepository.findOne({
+            where: { username: query.favorited },
+            relations: ["favorites"],
+          });
+          if (!user) return { posts: [], postsCount: 0 };
+          const ids = user.favorites.map((a) => a.id);
+          if (ids.length === 0) return { posts: [], postsCount: 0 };
+          qb.andWhere("post.id IN (:...ids)", { ids });
+        }
 
-    return {
-      posts: posts.map((post) => this.toPostResponse(post)),
-      postsCount,
-    };
+        const postsCount = await qb.getCount();
+        qb.skip(query.offset).take(query.limit);
+        const posts = await qb.getMany();
+
+        return {
+          posts: posts.map((post) => this.toPostResponse(post)),
+          postsCount,
+        };
+      },
+    );
   }
 
   async findFeed(userId: number, query: PostQueryDto): Promise<PostsRO> {
@@ -101,13 +110,19 @@ export class PostService {
   }
 
   async findOne(slug: string): Promise<PostRO> {
-    const post = await this.findPostOrFail(slug, ["author", "tags"]);
+    return this.cacheService.remember(
+      this.buildPostDetailCacheKey(slug),
+      POST_DETAIL_CACHE_TTL_SECONDS,
+      async () => {
+        const post = await this.findPostOrFail(slug, ["author", "tags"]);
 
-    if (!post) {
-      throw new NotFoundException(`Post with slug "${slug}" not found`);
-    }
+        if (!post) {
+          throw new NotFoundException(`Post with slug "${slug}" not found`);
+        }
 
-    return { post: this.toPostResponse(post) };
+        return { post: this.toPostResponse(post) };
+      },
+    );
   }
 
   async create(userId: number, dto: CreatePostDto): Promise<PostRO> {
@@ -126,6 +141,8 @@ export class PostService {
     });
 
     const saved = await this.postRepository.save(post);
+    await this.clearPostCache(saved.slug);
+
     return { post: this.toPostResponse(saved) };
   }
 
@@ -135,6 +152,7 @@ export class PostService {
     dto: Partial<CreatePostDto>,
   ): Promise<PostRO> {
     const post = await this.findPostOrFail(slug, ["author", "tags"]);
+    const oldSlug = post.slug;
 
     if (!post) throw new NotFoundException("Post not found");
     if (post.author.id !== userId)
@@ -152,6 +170,8 @@ export class PostService {
     }
 
     const updated = await this.postRepository.save(post);
+    await this.clearPostCache(oldSlug);
+    await this.clearPostCache(updated.slug);
 
     return { post: this.toPostResponse(updated) };
   }
@@ -163,7 +183,10 @@ export class PostService {
     if (post.author.id !== userId)
       throw new ForbiddenException("You can only delete your own posts");
 
-    return this.postRepository.delete({ slug });
+    const result = await this.postRepository.delete({ slug });
+    await this.clearPostCache(slug);
+
+    return result;
   }
 
   async favorite(userId: number, slug: string): Promise<PostRO> {
@@ -201,6 +224,7 @@ export class PostService {
 
     await this.userRepository.save(user);
     await this.postRepository.save(post);
+    await this.clearPostCache(slug);
 
     return { post: this.toPostResponse(post) };
   }
@@ -260,6 +284,30 @@ export class PostService {
   private generateSlug(title: string): string {
     const randomSuffix = ((Math.random() * Math.pow(36, 6)) | 0).toString(36);
     return `${slugify(title, { lower: true })}-${randomSuffix}`;
+  }
+
+  private buildPostListCacheKey(query: PostQueryDto): string {
+    const cacheQuery = {
+      tag: query.tag ?? "",
+      author: query.author ?? "",
+      favorited: query.favorited ?? "",
+      limit: query.limit ?? 20,
+      offset: query.offset ?? 0,
+    };
+
+    return `posts:list:${JSON.stringify(cacheQuery)}`;
+  }
+
+  private buildPostDetailCacheKey(slug: string): string {
+    return `posts:detail:${slug}`;
+  }
+
+  private async clearPostCache(slug?: string): Promise<void> {
+    await this.cacheService.deleteByPattern("posts:list:*");
+
+    if (slug) {
+      await this.cacheService.del(this.buildPostDetailCacheKey(slug));
+    }
   }
 
   private async findPostOrFail(

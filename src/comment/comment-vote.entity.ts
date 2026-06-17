@@ -10,9 +10,8 @@ import {
   Check,
   Index,
 } from "typeorm";
-import { Comment, CommentEntity } from "./comment.entity";
+import { CommentEntity } from "./comment.entity";
 import { UserEntity } from "@/user/user.entity";
-import { userInfo } from "node:os";
 
 @Entity("comment_votes")
 @Unique(["commentId", "userId"])
@@ -23,11 +22,11 @@ export class CommentVote {
   @PrimaryGeneratedColumn("uuid")
   id: string;
 
-  @Column("uuid")
-  commentId: string;
+  @Column()
+  commentId: number;
 
-  @Column("uuid")
-  userId: string;
+  @Column()
+  userId: number;
 
   @Column({ type: "smallint" })
   value: 1 | -1;

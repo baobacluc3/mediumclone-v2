@@ -1,13 +1,10 @@
 import {
   Get,
   Post,
-  Body,
-  Put,
   Delete,
   Query,
   Param,
   Controller,
-  ParseIntPipe,
   HttpCode,
   HttpStatus,
   UseGuards,
@@ -18,6 +15,7 @@ import { CreatePostDto, PostQueryDto } from "./dto";
 import { PostsRO, PostRO } from "./post.interface";
 import { User } from "../common/decorators/user.decorator";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
+import { SlugValidationPipe } from "../common/pipes/slug-validation.pipe";
 
 @Controller("posts")
 export class PostController {
@@ -38,7 +36,7 @@ export class PostController {
   }
 
   @Get(":slug")
-  findOne(@Param("slug") slug: string): Promise<PostRO> {
+  findOne(@Param("slug", SlugValidationPipe) slug: string): Promise<PostRO> {
     return this.postService.findOne(slug);
   }
 
@@ -46,7 +44,7 @@ export class PostController {
   @UseGuards(JwtAuthGuard)
   favorite(
     @User("id") userId: number,
-    @Param("slug") slug: string,
+    @Param("slug", SlugValidationPipe) slug: string,
   ): Promise<PostRO> {
     return this.postService.favorite(userId, slug);
   }
@@ -56,7 +54,7 @@ export class PostController {
   @UseGuards(JwtAuthGuard)
   unFavorite(
     @User("id") userId: number,
-    @Param("slug") slug: string,
+    @Param("slug", SlugValidationPipe) slug: string,
   ): Promise<PostRO> {
     return this.postService.unFavorite(userId, slug);
   }

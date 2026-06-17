@@ -23,7 +23,7 @@ export class UserService {
   async login(dto: LoginUserDto) {
     const user = await this.userRepository
       .createQueryBuilder("user")
-      .addSelect("user.password")
+      .addSelect("user.passwordHash")
       .where("LOWER(user.email) = :email", {
         email: dto.email.toLowerCase(),
       })
@@ -33,7 +33,7 @@ export class UserService {
       throw new UnauthorizedException("Invalid credentials");
     }
 
-    const isMatch = await bcrypt.compare(dto.password, user.password);
+    const isMatch = await bcrypt.compare(dto.password, user.passwordHash);
 
     if (!isMatch) {
       throw new UnauthorizedException("Invalid credentials");
@@ -43,6 +43,12 @@ export class UserService {
   }
 
   async findById(id: number) {
+    const user = await this.findEntityById(id);
+
+    return this.buildUserResponse(user);
+  }
+
+  async findEntityById(id: number) {
     const user = await this.userRepository.findOne({
       where: { id },
     });
@@ -51,7 +57,7 @@ export class UserService {
       throw new NotFoundException("User not found");
     }
 
-    return this.buildUserResponse(user);
+    return user;
   }
 
   findByEmail(email: string) {
@@ -68,13 +74,27 @@ export class UserService {
       .getOne();
   }
 
-  create(email: string, passwordHash: string) {
+  async create(dto: CreateUserDto) {
+    const email = dto.email.toLowerCase().trim();
+    const username = dto.username?.trim() || email.split("@")[0];
+    const existingUser = await this.userRepository.findOne({
+      where: [{ email }, { username }],
+    });
+
+    if (existingUser) {
+      throw new ConflictException("Username or email already exists");
+    }
+
+    const passwordHash = await bcrypt.hash(dto.password, 10);
     const user = this.userRepository.create({
+      username,
       email,
       passwordHash,
     });
 
-    return this.userRepository.save(user);
+    const savedUser = await this.userRepository.save(user);
+
+    return this.buildUserResponse(savedUser);
   }
 
   async update(id: number, dto: UpdateUserDto) {

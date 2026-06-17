@@ -23,6 +23,7 @@ export class AuthService {
 
   async register(dto: RegisterDto) {
     const email = dto.email.toLowerCase().trim();
+    const username = dto.username?.trim() || email.split("@")[0];
 
     const existingUser = await this.userService.findByEmail(email);
 
@@ -32,7 +33,13 @@ export class AuthService {
 
     const hashedPassword = await bcrypt.hash(dto.password, 10);
 
-    const user = this.userRepository.create(email, hashedPassword);
+    const user = await this.userRepository.save(
+      this.userRepository.create({
+        email,
+        username,
+        passwordHash: hashedPassword,
+      }),
+    );
 
     return {
       id: user.id,
@@ -66,7 +73,7 @@ export class AuthService {
 
   private signAccessToken(userId: number, email: string) {
     const payload = {
-      sub: userId,
+      id: userId,
       email,
     };
 

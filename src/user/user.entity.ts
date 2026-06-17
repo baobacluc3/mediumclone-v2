@@ -10,7 +10,9 @@ import {
   UpdateDateColumn,
 } from "typeorm";
 import { CommentEntity } from "@/comment/comment.entity";
+import { CommentVote } from "@/comment/comment-vote.entity";
 import { PostEntity } from "@/posts/post.entity";
+import { Bookmark } from "@/bookmark/bookmark.entity";
 
 @Entity("user")
 export class UserEntity {
@@ -47,4 +49,10 @@ export class UserEntity {
 
   @OneToMany(() => CommentEntity, (comment) => comment.author)
   comments: CommentEntity[];
+
+  @OneToMany(() => CommentVote, (vote) => vote.user)
+  commentVotes: CommentVote[];
+
+  @OneToMany(() => Bookmark, (bookmark) => bookmark.user)
+  bookmarks: Bookmark[];
 }

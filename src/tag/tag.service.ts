@@ -13,6 +13,10 @@ import {
   UpdateTagDto,
 } from "./dto/tag.dto";
 import { TagEntity } from "./tag.entity";
+import { RedisCacheService } from "../cache/redis-cache.service";
+
+const TAG_LIST_CACHE_TTL_SECONDS = 300;
+const TAG_DETAIL_CACHE_TTL_SECONDS = 300;
 
 @Injectable()
 export class TagService {
@@ -21,38 +25,55 @@ export class TagService {
   constructor(
     @InjectRepository(TagEntity)
     private readonly tagRepository: Repository<TagEntity>,
+    private readonly cacheService: RedisCacheService,
   ) {}
 
   async findAll(query: PaginationQueryDto): Promise<PaginatedTagsDto> {
-    const { page, limit, search } = query;
-    const skip = (page - 1) * limit;
-    const where = search ? { name: ILike(`%${search}%`) } : {};
+    const cacheKey = this.buildTagListCacheKey(query);
 
-    const [data, total] = await this.tagRepository.findAndCount({
-      where,
-      order: { createdAt: "DESC" },
-      skip,
-      take: limit,
-    });
+    return this.cacheService.remember(
+      cacheKey,
+      TAG_LIST_CACHE_TTL_SECONDS,
+      async () => {
+        const page = query.page ?? 1;
+        const limit = query.limit ?? 10;
+        const { search } = query;
+        const skip = (page - 1) * limit;
+        const where = search ? { name: ILike(`%${search}%`) } : {};
 
-    this.logger.log(`Found ${total} tags (page ${page})`);
+        const [data, total] = await this.tagRepository.findAndCount({
+          where,
+          order: { createdAt: "DESC" },
+          skip,
+          take: limit,
+        });
 
-    return {
-      data,
-      total,
-      page,
-      lastPage: Math.ceil(total / limit),
-    };
+        this.logger.log(`Found ${total} tags (page ${page})`);
+
+        return {
+          data,
+          total,
+          page,
+          lastPage: Math.ceil(total / limit),
+        };
+      },
+    );
   }
 
   async findOne(id: number): Promise<TagEntity> {
-    const tag = await this.tagRepository.findOne({ where: { id } });
+    return this.cacheService.remember(
+      this.buildTagDetailCacheKey(id),
+      TAG_DETAIL_CACHE_TTL_SECONDS,
+      async () => {
+        const tag = await this.tagRepository.findOne({ where: { id } });
 
-    if (!tag) {
-      throw new NotFoundException(`Tag with id ${id} not found`);
-    }
+        if (!tag) {
+          throw new NotFoundException(`Tag with id ${id} not found`);
+        }
 
-    return tag;
+        return tag;
+      },
+    );
   }
 
   async create(createTagDto: CreateTagDto): Promise<TagEntity> {
@@ -62,6 +83,8 @@ export class TagService {
     const saved = await this.tagRepository.save(tag);
 
     this.logger.log(`Created tag: ${saved.name} (id: ${saved.id})`);
+    await this.clearTagCache(saved.id);
+
     return saved;
   }
 
@@ -75,6 +98,8 @@ export class TagService {
     const updated = await this.tagRepository.save({ ...tag, ...updateTagDto });
 
     this.logger.log(`Updated tag id: ${id}`);
+    await this.clearTagCache(id);
+
     return updated;
   }
 
@@ -83,6 +108,7 @@ export class TagService {
     await this.tagRepository.softRemove(tag);
 
     this.logger.log(`Soft deleted tag id: ${id}`);
+    await this.clearTagCache(id);
   }
 
   private async assertNameIsUnique(name: string): Promise<void> {
@@ -90,6 +116,28 @@ export class TagService {
 
     if (existing) {
       throw new ConflictException(`Tag with name "${name}" already exists`);
+    }
+  }
+
+  private buildTagListCacheKey(query: PaginationQueryDto): string {
+    const cacheQuery = {
+      page: query.page ?? 1,
+      limit: query.limit ?? 10,
+      search: query.search ?? "",
+    };
+
+    return `tags:list:${JSON.stringify(cacheQuery)}`;
+  }
+
+  private buildTagDetailCacheKey(id: number): string {
+    return `tags:detail:${id}`;
+  }
+
+  private async clearTagCache(id?: number): Promise<void> {
+    await this.cacheService.deleteByPattern("tags:list:*");
+
+    if (id) {
+      await this.cacheService.del(this.buildTagDetailCacheKey(id));
     }
   }
 }
