@@ -9,8 +9,13 @@ import {
   Post,
   Put,
   Query,
+  UseGuards,
 } from "@nestjs/common";
 import { ParsePositiveIntPipe } from "../common/pipes/parse-positive-int.pipe";
+import { AccessControlGuard } from "@/auth/authorization/access-control.guard";
+import { Permission } from "@/auth/permissions";
+import { RequirePermissions } from "@/common/decorators/permissions.decorator";
+import { JwtAuthGuard } from "@/common/guards/jwt-auth.guard";
 import {
   CreateTagDto,
   PaginatedTagsDto,
@@ -36,11 +41,15 @@ export class TagController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
+  @UseGuards(JwtAuthGuard, AccessControlGuard)
+  @RequirePermissions(Permission.MANAGE_TAGS)
   create(@Body() createTagDto: CreateTagDto): Promise<TagEntity> {
     return this.tagService.create(createTagDto);
   }
 
   @Put(":id")
+  @UseGuards(JwtAuthGuard, AccessControlGuard)
+  @RequirePermissions(Permission.MANAGE_TAGS)
   update(
     @Param("id", ParsePositiveIntPipe) id: number,
     @Body() updateTagDto: UpdateTagDto,
@@ -50,6 +59,8 @@ export class TagController {
 
   @Delete(":id")
   @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(JwtAuthGuard, AccessControlGuard)
+  @RequirePermissions(Permission.MANAGE_TAGS)
   remove(@Param("id", ParsePositiveIntPipe) id: number): Promise<void> {
     return this.tagService.remove(id);
   }

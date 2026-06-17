@@ -8,6 +8,7 @@ import { UserEntity } from "../user/user.entity";
 import { FollowsEntity } from "../profile/follows.entity";
 import { UserModule } from "../user/user.module";
 import { TagEntity } from "../tag/tag.entity";
+import { AuthorizationModule } from "@/auth/authorization/authorization.module";
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { TagEntity } from "../tag/tag.entity";
       TagEntity,
     ]),
     UserModule,
+    AuthorizationModule,
   ],
   providers: [PostService],
   controllers: [PostController],

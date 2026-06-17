@@ -9,6 +9,7 @@ import {
 } from "typeorm";
 
 @Entity("tags")
+@Index("idx_tags_created_at", ["createdAt"])
 export class TagEntity {
   @PrimaryGeneratedColumn()
   id: number;

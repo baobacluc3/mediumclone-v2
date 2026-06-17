@@ -26,6 +26,7 @@ export enum CommentStatus {
 @Index(["postId", "parentId", "score"])
 @Index(["postId", "rootId"])
 @Index(["authorId", "createdAt"])
+@Index("idx_comments_post_created_at", ["postId", "createdAt"])
 export class CommentEntity {
   @PrimaryGeneratedColumn()
   id: number;

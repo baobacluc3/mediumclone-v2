@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { CommentEntity, CommentStatus } from "../comment.entity";
-import { AuthUser } from "@/auth/types/auth-user.type";
+import { AuthUser, UserRole } from "@/auth/types/auth-user.type";
 
 @Injectable()
 export class CommentPolicy {
@@ -11,7 +11,11 @@ export class CommentPolicy {
   }
 
   canDelete(user: AuthUser, comment: CommentEntity): boolean {
-    return comment.authorId === user.id || user.roles.includes("moderator");
+    return (
+      comment.authorId === user.id ||
+      user.roles.includes(UserRole.MODERATOR) ||
+      user.roles.includes(UserRole.ADMIN)
+    );
   }
 
   //Nếu parent.depth < 5, nghĩa là chỉ cho  cay reply đến một mức nhất định để tránh comment lồng quá sâu.

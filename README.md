@@ -1,15 +1,18 @@
 # Medium Clone API
 
-A simple REST API for a Medium-style blog, built with NestJS, TypeORM, PostgreSQL, Redis caching, and JWT authentication.
+A REST API for a Medium-style publishing platform, built with NestJS, TypeORM, PostgreSQL, Redis caching, JWT access tokens, and refresh token rotation.
 
 ## Main Features
 
-- Register, login, and update the current user
+- Register, login, refresh tokens, and logout
+- Update the current user
+- Admin user deletion and role management
 - Create, edit, delete, list, and read posts
-- Add comments to posts
-- Favorite posts
+- Add and delete comments
+- Favorite and unfavorite posts
 - Follow author profiles
-- Manage post tags
+- Manage post tags with role-based access control
+- Redis caching for frequently read resources
 
 ## Tech Stack
 
@@ -19,6 +22,8 @@ A simple REST API for a Medium-style blog, built with NestJS, TypeORM, PostgreSQ
 - PostgreSQL
 - Redis
 - JWT authentication
+- Refresh token rotation
+- Role-based access control
 
 ## API Endpoints
 
@@ -26,10 +31,15 @@ Base URL: `http://localhost:3000/api`
 
 | Method | Endpoint | Description |
 | --- | --- | --- |
-| `POST` | `/users` | Register |
-| `POST` | `/users/login` | Login |
+| `POST` | `/auth/register` | Register and receive access/refresh tokens |
+| `POST` | `/auth/login` | Login and receive access/refresh tokens |
+| `POST` | `/auth/refresh` | Rotate refresh token and receive new tokens |
+| `POST` | `/auth/logout` | Revoke the current user's refresh token |
+| `GET` | `/auth/profile` | Current auth profile |
 | `GET` | `/user` | Current user |
 | `PUT` | `/user` | Update current user |
+| `DELETE` | `/users/:id` | Delete user |
+| `PATCH` | `/users/:id/roles` | Update user roles |
 | `GET` | `/posts` | List posts |
 | `GET` | `/posts/feed` | Posts from followed authors |
 | `POST` | `/posts` | Create post |
@@ -52,24 +62,20 @@ Base URL: `http://localhost:3000/api`
 
 ```text
 src/
-├── auth/                  # JWT strategy and auth payload types
-├── common/                # Shared decorators and guards
-├── database/              # Database configuration
-├── modules/               # Feature modules grouped by domain
-│   ├── post/
-│   │   ├── controllers/
-│   │   ├── dto/
-│   │   ├── entities/
-│   │   ├── interfaces/
-│   │   └── services/
-│   ├── profile/
-│   ├── tag/
-│   └── user/
-├── app.module.ts
-└── main.ts
+auth/        # JWT strategy, auth endpoints, roles, and permissions
+cache/       # Redis cache integration
+comment/     # Comment entities, policies, and routes
+common/      # Shared decorators, guards, interceptors, and pipes
+database/    # TypeORM configuration
+posts/       # Article entities, DTOs, service, and routes
+profile/     # Author profile and follow routes
+tag/         # Tag entities, DTOs, service, and routes
+user/        # Current-user, admin user, and role-management routes
+app.module.ts
+main.ts
 ```
 
-Feature code is grouped by domain under `src/modules`, while cross-cutting authentication and request helpers live in `src/auth` and `src/common`.
+Feature code is grouped by domain under `src`, while cross-cutting authentication and request helpers live in `src/auth` and `src/common`.
 
 ## Setup
 
@@ -80,7 +86,7 @@ docker run --name mediumclone-redis -p 6379:6379 -d redis:7-alpine
 npm run start:dev
 ```
 
-The project uses TypeORM `synchronize: true`, so database tables are created automatically while developing.
+The project uses TypeORM `synchronize: true` by default for local development, so database tables are created automatically while developing.
 
 Redis is used as a cache for frequently read post and tag endpoints. If Redis is not running, the API logs a warning and continues by reading directly from PostgreSQL.
 
@@ -94,6 +100,9 @@ DB_USER=postgres
 DB_PASS=password
 DB_NAME=mediumclone
 JWT_SECRET=change-me
+JWT_ACCESS_EXPIRES_IN=15m
+JWT_REFRESH_SECRET=change-me-too
+JWT_REFRESH_EXPIRES_IN=7d
 CACHE_ENABLED=true
 REDIS_URL=redis://localhost:6379
 ```

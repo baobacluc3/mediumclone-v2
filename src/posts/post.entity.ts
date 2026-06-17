@@ -9,13 +9,15 @@ import {
   JoinTable,
   CreateDateColumn,
   UpdateDateColumn,
+  Index,
 } from "typeorm";
 import { UserEntity } from "../user/user.entity";
 import { TagEntity } from "../tag/tag.entity";
 import { CommentEntity } from "@/comment/comment.entity";
-import { Bookmark } from "@/bookmark/bookmark.entity";
 
 @Entity("posts")
+@Index("idx_posts_created_at", ["createdAt"])
+@Index("idx_posts_author_created_at", ["authorId", "createdAt"])
 export class PostEntity {
   @PrimaryGeneratedColumn()
   id: number;
@@ -49,7 +51,11 @@ export class PostEntity {
   @UpdateDateColumn()
   updatedAt: Date;
 
+  @Column()
+  authorId: number;
+
   @ManyToOne(() => UserEntity, (user) => user.posts, { eager: false })
+  @JoinColumn({ name: "authorId" })
   author: UserEntity;
 
   @OneToMany(() => CommentEntity, (comment) => comment.post, {
@@ -58,6 +64,4 @@ export class PostEntity {
   @JoinColumn()
   comments: CommentEntity[];
 
-  @OneToMany(() => Bookmark, (bookmark) => bookmark.post)
-  bookmarks: Bookmark[];
 }

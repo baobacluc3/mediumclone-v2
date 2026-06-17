@@ -20,5 +20,3 @@ export class RegisterDto {
   @MaxLength(30)
   username?: string;
 }
-
-export class CreateUserDto extends RegisterDto {}

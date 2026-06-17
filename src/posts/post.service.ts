@@ -15,6 +15,7 @@ import { TagEntity } from "../tag/tag.entity";
 import { RedisCacheService } from "../cache/redis-cache.service";
 import { CreatePostDto, PostQueryDto } from "./dto";
 import { PostResponse, PostRO, PostsRO } from "./post.interface";
+import { AuthUser, UserRole } from "@/auth/types/auth-user.type";
 
 const POST_LIST_CACHE_TTL_SECONDS = 60;
 const POST_DETAIL_CACHE_TTL_SECONDS = 300;
@@ -148,14 +149,14 @@ export class PostService {
 
   async update(
     slug: string,
-    userId: number,
+    user: AuthUser,
     dto: Partial<CreatePostDto>,
   ): Promise<PostRO> {
     const post = await this.findPostOrFail(slug, ["author", "tags"]);
     const oldSlug = post.slug;
 
     if (!post) throw new NotFoundException("Post not found");
-    if (post.author.id !== userId)
+    if (post.author.id !== user.id && !user.roles?.includes(UserRole.ADMIN))
       throw new ForbiddenException("You can only edit your own posts");
 
     if (dto.title && dto.title !== post.title) {
@@ -176,11 +177,11 @@ export class PostService {
     return { post: this.toPostResponse(updated) };
   }
 
-  async delete(slug: string, userId: number): Promise<DeleteResult> {
+  async delete(slug: string, user: AuthUser): Promise<DeleteResult> {
     const post = await this.findPostOrFail(slug, ["author"]);
 
     if (!post) throw new NotFoundException("Post not found");
-    if (post.author.id !== userId)
+    if (post.author.id !== user.id && !user.roles?.includes(UserRole.ADMIN))
       throw new ForbiddenException("You can only delete your own posts");
 
     const result = await this.postRepository.delete({ slug });

@@ -11,6 +11,8 @@ import { UserEntity } from "../user/user.entity";
 import { CreateCommentDto } from "../posts/dto";
 import { CommentsRO } from "../posts/post.interface";
 import { CommentEntity } from "./comment.entity";
+import { AuthUser } from "@/auth/types/auth-user.type";
+import { CommentPolicy } from "./policies/comment.policy";
 
 @Injectable()
 export class CommentService {
@@ -21,6 +23,7 @@ export class CommentService {
     private readonly postRepository: Repository<PostEntity>,
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
+    private readonly commentPolicy: CommentPolicy,
   ) {}
 
   async findComments(slug: string): Promise<CommentsRO> {
@@ -61,7 +64,7 @@ export class CommentService {
   async deleteComment(
     slug: string,
     commentId: number,
-    userId: number,
+    user: AuthUser,
   ): Promise<CommentsRO> {
     const post = await this.postRepository.findOne({ where: { slug } });
     if (!post) throw new NotFoundException("Post not found");
@@ -72,7 +75,7 @@ export class CommentService {
     });
 
     if (!comment) throw new NotFoundException("Comment not found");
-    if (comment.author?.id !== userId) {
+    if (!this.commentPolicy.canDelete(user, comment)) {
       throw new ForbiddenException("You can only delete your own comments");
     }
 

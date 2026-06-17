@@ -8,6 +8,7 @@ import { JwtStrategy } from "../auth/jwt.strategy";
 import { UserController } from "./user.controller";
 import { UserEntity } from "./user.entity";
 import { UserService } from "./user.service";
+import { AuthorizationModule } from "@/auth/authorization/authorization.module";
 
 @Module({
   imports: [
@@ -19,9 +20,9 @@ import { UserService } from "./user.service";
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         secret: configService.getOrThrow<string>("JWT_SECRET"),
-        signOptions: { expiresIn: "7d" },
       }),
     }),
+    AuthorizationModule,
   ],
   providers: [UserService, JwtStrategy, JwtAuthGuard],
   controllers: [UserController],

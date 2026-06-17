@@ -3,24 +3,26 @@ import {
   Controller,
   Delete,
   Get,
-  Logger,
   Param,
-  Post,
+  Patch,
   Put,
   UseGuards,
   ForbiddenException,
 } from "@nestjs/common";
 import { ParsePositiveIntPipe } from "../common/pipes/parse-positive-int.pipe";
-import { CreateUserDto, LoginUserDto, UpdateUserDto } from "./dto";
+import { UpdateUserDto, UpdateUserRolesDto } from "./dto";
 import { UserRO } from "./user.interface";
 import { UserService } from "./user.service";
 import { User } from "../common/decorators/user.decorator";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
+import { AccessControlGuard } from "@/auth/authorization/access-control.guard";
+import { RequirePermissions } from "@/common/decorators/permissions.decorator";
+import { Permission } from "@/auth/permissions";
+import { AuthenticatedUser } from "@/auth/auth.types";
+import { UserRole } from "@/auth/types/auth-user.type";
 
 @Controller()
 export class UserController {
-  private readonly logger = new Logger(UserController.name);
-
   constructor(private readonly userService: UserService) {}
 
   @Get("user")
@@ -38,29 +40,28 @@ export class UserController {
     return this.userService.update(userId, dto);
   }
 
-  @Post("users")
-  async create(@Body("user") dto: CreateUserDto): Promise<UserRO> {
-    return this.userService.create(dto);
-  }
-
-  @Post("users/login")
-  async login(@Body("user") dto: LoginUserDto): Promise<UserRO> {
-    const response = await this.userService.login(dto);
-
-    this.logger.log(`User logged in: ${dto.email}`);
-    return response;
-  }
-
   @Delete("users/:id")
   @UseGuards(JwtAuthGuard)
   async delete(
-    @User("id") currentUserId: number,
+    @User() currentUser: AuthenticatedUser,
     @Param("id", ParsePositiveIntPipe) id: number,
   ): Promise<void> {
-    if (currentUserId !== id) {
+    const canDeleteAny = currentUser.roles?.includes(UserRole.ADMIN);
+
+    if (currentUser.id !== id && !canDeleteAny) {
       throw new ForbiddenException("You can only delete your own account.");
     }
 
     await this.userService.delete(id);
+  }
+
+  @Patch("users/:id/roles")
+  @UseGuards(JwtAuthGuard, AccessControlGuard)
+  @RequirePermissions(Permission.MANAGE_USER_ROLES)
+  updateRoles(
+    @Param("id", ParsePositiveIntPipe) id: number,
+    @Body() dto: UpdateUserRolesDto,
+  ): Promise<UserRO> {
+    return this.userService.updateRoles(id, dto.roles);
   }
 }

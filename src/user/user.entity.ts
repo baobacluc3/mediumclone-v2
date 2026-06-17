@@ -1,4 +1,3 @@
-import { IsEmail } from "class-validator";
 import {
   Column,
   CreateDateColumn,
@@ -12,7 +11,7 @@ import {
 import { CommentEntity } from "@/comment/comment.entity";
 import { CommentVote } from "@/comment/comment-vote.entity";
 import { PostEntity } from "@/posts/post.entity";
-import { Bookmark } from "@/bookmark/bookmark.entity";
+import { UserRole } from "@/auth/types/auth-user.type";
 
 @Entity("user")
 export class UserEntity {
@@ -34,6 +33,15 @@ export class UserEntity {
   @Column({ name: "passwordHash", select: false })
   passwordHash: string;
 
+  @Column({ name: "refreshTokenHash", nullable: true, select: false })
+  refreshTokenHash?: string | null;
+
+  @Column({
+    type: "simple-array",
+    default: UserRole.USER,
+  })
+  roles: UserRole[];
+
   @CreateDateColumn()
   createdAt: Date;
 
@@ -53,6 +61,4 @@ export class UserEntity {
   @OneToMany(() => CommentVote, (vote) => vote.user)
   commentVotes: CommentVote[];
 
-  @OneToMany(() => Bookmark, (bookmark) => bookmark.user)
-  bookmarks: Bookmark[];
 }

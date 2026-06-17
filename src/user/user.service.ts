@@ -4,13 +4,16 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import { InjectRepository } from "@nestjs/typeorm";
 import * as bcrypt from "bcrypt";
 import { Not, Repository } from "typeorm";
 
-import { CreateUserDto, LoginUserDto, UpdateUserDto } from "./dto";
+import { UpdateUserDto } from "./dto";
 import { UserEntity } from "./user.entity";
+import { UserRole } from "@/auth/types/auth-user.type";
+import { AuthTokens, JwtUserPayload } from "@/auth/auth.types";
 
 @Injectable()
 export class UserService {
@@ -18,29 +21,8 @@ export class UserService {
     @InjectRepository(UserEntity)
     private userRepository: Repository<UserEntity>,
     private jwtService: JwtService,
+    private configService: ConfigService,
   ) {}
-
-  async login(dto: LoginUserDto) {
-    const user = await this.userRepository
-      .createQueryBuilder("user")
-      .addSelect("user.passwordHash")
-      .where("LOWER(user.email) = :email", {
-        email: dto.email.toLowerCase(),
-      })
-      .getOne();
-
-    if (!user) {
-      throw new UnauthorizedException("Invalid credentials");
-    }
-
-    const isMatch = await bcrypt.compare(dto.password, user.passwordHash);
-
-    if (!isMatch) {
-      throw new UnauthorizedException("Invalid credentials");
-    }
-
-    return this.buildUserResponse(user);
-  }
 
   async findById(id: number) {
     const user = await this.findEntityById(id);
@@ -62,7 +44,7 @@ export class UserService {
 
   findByEmail(email: string) {
     return this.userRepository.findOne({
-      where: { email },
+      where: { email: email.toLowerCase().trim() },
     });
   }
 
@@ -70,31 +52,8 @@ export class UserService {
     return this.userRepository
       .createQueryBuilder("user")
       .addSelect("user.passwordHash")
-      .where("user.email=:email", { email })
+      .where("user.email=:email", { email: email.toLowerCase().trim() })
       .getOne();
-  }
-
-  async create(dto: CreateUserDto) {
-    const email = dto.email.toLowerCase().trim();
-    const username = dto.username?.trim() || email.split("@")[0];
-    const existingUser = await this.userRepository.findOne({
-      where: [{ email }, { username }],
-    });
-
-    if (existingUser) {
-      throw new ConflictException("Username or email already exists");
-    }
-
-    const passwordHash = await bcrypt.hash(dto.password, 10);
-    const user = this.userRepository.create({
-      username,
-      email,
-      passwordHash,
-    });
-
-    const savedUser = await this.userRepository.save(user);
-
-    return this.buildUserResponse(savedUser);
   }
 
   async update(id: number, dto: UpdateUserDto) {
@@ -156,22 +115,169 @@ export class UserService {
     };
   }
 
-  generateJWT(user: UserEntity) {
-    return this.jwtService.sign({
-      id: user.id,
-      email: user.email,
-    });
+  async updateRoles(id: number, roles: UserRole[]) {
+    const user = await this.findEntityById(id);
+    const nextRoles = this.normalizeRoles(roles);
+
+    if (
+      user.roles?.includes(UserRole.ADMIN) &&
+      !nextRoles.includes(UserRole.ADMIN)
+    ) {
+      await this.assertAnotherAdminExists(user.id);
+    }
+
+    user.roles = nextRoles;
+
+    return this.buildUserResponse(await this.userRepository.save(user));
   }
 
-  buildUserResponse(user: UserEntity) {
+  async refreshTokens(refreshToken: string) {
+    let payload: JwtUserPayload;
+
+    try {
+      payload = await this.jwtService.verifyAsync<JwtUserPayload>(
+        refreshToken,
+        {
+          secret: this.getRefreshTokenSecret(),
+        },
+      );
+    } catch {
+      throw new UnauthorizedException("Invalid or expired refresh token");
+    }
+
+    if (payload.tokenType !== "refresh") {
+      throw new UnauthorizedException("Invalid refresh token");
+    }
+
+    const userId = payload.sub ?? payload.id;
+    if (!userId) {
+      throw new UnauthorizedException("Invalid refresh token");
+    }
+
+    const user = await this.userRepository
+      .createQueryBuilder("user")
+      .addSelect("user.refreshTokenHash")
+      .where("user.id = :id", { id: userId })
+      .getOne();
+
+    if (!user?.refreshTokenHash) {
+      throw new UnauthorizedException("Invalid refresh token");
+    }
+
+    const isRefreshTokenValid = await bcrypt.compare(
+      refreshToken,
+      user.refreshTokenHash,
+    );
+
+    if (!isRefreshTokenValid) {
+      throw new UnauthorizedException("Invalid refresh token");
+    }
+
+    return this.issueTokenPair(user);
+  }
+
+  async logout(userId: number) {
+    await this.userRepository.update(userId, { refreshTokenHash: null });
+
+    return {
+      message: "Logged out successfully",
+    };
+  }
+
+  async issueTokenPair(user: UserEntity): Promise<AuthTokens> {
+    const tokens = await Promise.all([
+      this.signAccessToken(user),
+      this.signRefreshToken(user),
+    ]);
+
+    await this.userRepository.update(user.id, {
+      refreshTokenHash: await bcrypt.hash(tokens[1], 10),
+    });
+
+    return {
+      accessToken: tokens[0],
+      refreshToken: tokens[1],
+    };
+  }
+
+  generateJWT(user: UserEntity) {
+    return this.signAccessToken(user);
+  }
+
+  buildUserResponse(user: UserEntity, tokens?: AuthTokens) {
+    const accessToken = tokens?.accessToken ?? this.generateJWT(user);
+
     return {
       user: {
         username: user.username,
         email: user.email,
         bio: user.bio || "",
         image: user.image || "",
-        token: this.generateJWT(user),
+        token: accessToken,
+        accessToken,
+        ...(tokens?.refreshToken ? { refreshToken: tokens.refreshToken } : {}),
+        roles: user.roles?.length ? user.roles : [UserRole.USER],
       },
     };
+  }
+
+  private signAccessToken(user: UserEntity) {
+    return this.jwtService.sign(this.createTokenPayload(user, "access"), {
+      secret: this.configService.getOrThrow<string>("JWT_SECRET"),
+      expiresIn: this.configService.get<string>(
+        "JWT_ACCESS_EXPIRES_IN",
+        "15m",
+      ),
+    });
+  }
+
+  private signRefreshToken(user: UserEntity) {
+    return this.jwtService.sign(this.createTokenPayload(user, "refresh"), {
+      secret: this.getRefreshTokenSecret(),
+      expiresIn: this.configService.get<string>("JWT_REFRESH_EXPIRES_IN", "7d"),
+    });
+  }
+
+  private createTokenPayload(
+    user: UserEntity,
+    tokenType: JwtUserPayload["tokenType"],
+  ): JwtUserPayload {
+    return {
+      sub: user.id,
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      roles: user.roles?.length ? user.roles : [UserRole.USER],
+      tokenType,
+    };
+  }
+
+  private getRefreshTokenSecret() {
+    return (
+      this.configService.get<string>("JWT_REFRESH_SECRET") ??
+      `${this.configService.getOrThrow<string>("JWT_SECRET")}:refresh`
+    );
+  }
+
+  private normalizeRoles(roles: UserRole[]): UserRole[] {
+    const normalizedRoles = [...new Set(roles ?? [])].filter((role) =>
+      Object.values(UserRole).includes(role),
+    );
+
+    return normalizedRoles.length ? normalizedRoles : [UserRole.USER];
+  }
+
+  private async assertAnotherAdminExists(currentAdminId: number): Promise<void> {
+    const adminCount = await this.userRepository
+      .createQueryBuilder("user")
+      .where("user.id != :currentAdminId", { currentAdminId })
+      .andWhere("user.roles LIKE :adminRole", {
+        adminRole: `%${UserRole.ADMIN}%`,
+      })
+      .getCount();
+
+    if (adminCount === 0) {
+      throw new ConflictException("At least one admin must remain.");
+    }
   }
 }
