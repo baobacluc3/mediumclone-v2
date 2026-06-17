@@ -7,6 +7,7 @@ import {
 import { InjectRepository } from "@nestjs/typeorm";
 import { DeleteResult, In, Repository } from "typeorm";
 import slugify from "slug";
+import { randomBytes } from "crypto";
 
 import { PostEntity } from "./post.entity";
 import { UserEntity } from "../user/user.entity";
@@ -290,8 +291,8 @@ export class PostService {
   }
 
   private generateSlug(title: string): string {
-    const randomSuffix = ((Math.random() * Math.pow(36, 6)) | 0).toString(36);
-    return `${slugify(title, { lower: true })}-${randomSuffix}`;
+    const suffix = randomBytes(3).toString("hex");
+    return `${slugify(title, { lower: true })}-${suffix}`;
   }
 
   private buildPostListCacheKey(query: PostQueryDto): string {

@@ -127,10 +127,6 @@ export class UserService {
     }
 
     await this.userRepository.delete(id);
-
-    return {
-      message: "User deleted successfully",
-    };
   }
 
   async updateRoles(id: number, roles: UserRole[]) {

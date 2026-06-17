@@ -8,8 +8,15 @@ import { TrimStringsPipe } from "./common/pipes/trim-strings.pipe";
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(ApplicationModule);
+  const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
 
   app.setGlobalPrefix("api");
+  app.enableCors({
+    origin: allowedOrigins?.length ? allowedOrigins : true,
+    credentials: true,
+  });
   app.useGlobalPipes(new TrimStringsPipe(), new AppValidationPipe());
   app.useGlobalInterceptors(
     new LoggingInterceptor(),
@@ -21,7 +28,3 @@ async function bootstrap(): Promise<void> {
 }
 
 bootstrap();
-
-/*
-
-*/
