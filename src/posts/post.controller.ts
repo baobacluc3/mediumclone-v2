@@ -17,6 +17,7 @@ import { CreatePostDto, PostQueryDto, UpdatePostDto } from "./dto";
 import { PostsRO, PostRO } from "./post.interface";
 import { User } from "../common/decorators/user.decorator";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
+import { RequiredBodyPipe } from "@/common/pipes/required-body.pipe";
 import { SlugValidationPipe } from "../common/pipes/slug-validation.pipe";
 import { AccessControlGuard } from "@/auth/authorization/access-control.guard";
 import { RequirePermissions } from "@/common/decorators/permissions.decorator";
@@ -51,7 +52,7 @@ export class PostController {
   @RequirePermissions(Permission.CREATE_ARTICLE)
   create(
     @User("id") userId: number,
-    @Body("post") dto: CreatePostDto,
+    @Body("post", new RequiredBodyPipe("post")) dto: CreatePostDto,
   ): Promise<PostRO> {
     return this.postService.create(userId, dto);
   }
@@ -61,7 +62,7 @@ export class PostController {
   update(
     @User() user: AuthenticatedUser,
     @Param("slug", SlugValidationPipe) slug: string,
-    @Body("post") dto: UpdatePostDto,
+    @Body("post", new RequiredBodyPipe("post")) dto: UpdatePostDto,
   ): Promise<PostRO> {
     return this.postService.update(slug, user, dto);
   }

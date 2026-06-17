@@ -71,7 +71,7 @@ export class TagResponseDto {
 
   name: string;
 
-  description: string;
+  description: string | null;
 
   createdAt: Date;
 

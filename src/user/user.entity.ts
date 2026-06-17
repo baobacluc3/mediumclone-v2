@@ -8,8 +8,6 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from "typeorm";
-import { CommentEntity } from "@/comment/comment.entity";
-import { CommentVote } from "@/comment/comment-vote.entity";
 import { PostEntity } from "@/posts/post.entity";
 import { UserRole } from "@/auth/types/auth-user.type";
 
@@ -54,11 +52,4 @@ export class UserEntity {
 
   @OneToMany(() => PostEntity, (post: PostEntity) => post.author)
   posts: PostEntity[];
-
-  @OneToMany(() => CommentEntity, (comment) => comment.author)
-  comments: CommentEntity[];
-
-  @OneToMany(() => CommentVote, (vote) => vote.user)
-  commentVotes: CommentVote[];
-
 }

@@ -15,7 +15,9 @@ import { TagEntity } from "../tag/tag.entity";
 import { RedisCacheService } from "../cache/redis-cache.service";
 import { CreatePostDto, PostQueryDto } from "./dto";
 import { PostResponse, PostRO, PostsRO } from "./post.interface";
-import { AuthUser, UserRole } from "@/auth/types/auth-user.type";
+import { AccessControlService } from "@/auth/authorization/access-control.service";
+import { Permission } from "@/auth/permissions";
+import { AuthUser } from "@/auth/types/auth-user.type";
 
 const POST_LIST_CACHE_TTL_SECONDS = 60;
 const POST_DETAIL_CACHE_TTL_SECONDS = 300;
@@ -32,6 +34,7 @@ export class PostService {
     @InjectRepository(TagEntity)
     private readonly tagRepository: Repository<TagEntity>,
     private readonly cacheService: RedisCacheService,
+    private readonly accessControl: AccessControlService,
   ) {}
 
   async findAll(query: PostQueryDto): Promise<PostsRO> {
@@ -117,10 +120,6 @@ export class PostService {
       async () => {
         const post = await this.findPostOrFail(slug, ["author", "tags"]);
 
-        if (!post) {
-          throw new NotFoundException(`Post with slug "${slug}" not found`);
-        }
-
         return { post: this.toPostResponse(post) };
       },
     );
@@ -155,9 +154,14 @@ export class PostService {
     const post = await this.findPostOrFail(slug, ["author", "tags"]);
     const oldSlug = post.slug;
 
-    if (!post) throw new NotFoundException("Post not found");
-    if (post.author.id !== user.id && !user.roles?.includes(UserRole.ADMIN))
+    if (
+      post.author.id !== user.id &&
+      !this.accessControl.hasEveryPermission(user.roles, [
+        Permission.UPDATE_ANY_ARTICLE,
+      ])
+    ) {
       throw new ForbiddenException("You can only edit your own posts");
+    }
 
     if (dto.title && dto.title !== post.title) {
       post.slug = this.generateSlug(dto.title);
@@ -180,9 +184,14 @@ export class PostService {
   async delete(slug: string, user: AuthUser): Promise<DeleteResult> {
     const post = await this.findPostOrFail(slug, ["author"]);
 
-    if (!post) throw new NotFoundException("Post not found");
-    if (post.author.id !== user.id && !user.roles?.includes(UserRole.ADMIN))
+    if (
+      post.author.id !== user.id &&
+      !this.accessControl.hasEveryPermission(user.roles, [
+        Permission.DELETE_ANY_ARTICLE,
+      ])
+    ) {
       throw new ForbiddenException("You can only delete your own posts");
+    }
 
     const result = await this.postRepository.delete({ slug });
     await this.clearPostCache(slug);
@@ -200,8 +209,6 @@ export class PostService {
     shouldFavorite: boolean,
   ): Promise<PostRO> {
     const post = await this.findPostOrFail(slug, ["author", "tags"]);
-
-    if (!post) throw new NotFoundException("Post not found");
 
     const user = await this.userRepository.findOne({
       where: { id: userId },

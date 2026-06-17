@@ -1,4 +1,3 @@
-import { CommentEntity } from "@/comment/comment.entity";
 import { PostEntity } from "./post.entity";
 
 export type PostResponse = Omit<PostEntity, "tags"> & {
@@ -12,8 +11,4 @@ export interface PostRO {
 export interface PostsRO {
   posts: PostResponse[];
   postsCount: number;
-}
-
-export interface CommentsRO {
-  comments: CommentEntity[];
 }

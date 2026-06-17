@@ -8,7 +8,6 @@ A REST API for a Medium-style publishing platform, built with NestJS, TypeORM, P
 - Update the current user
 - Admin user deletion and role management
 - Create, edit, delete, list, and read posts
-- Add and delete comments
 - Favorite and unfavorite posts
 - Follow author profiles
 - Manage post tags with role-based access control
@@ -46,8 +45,6 @@ Base URL: `http://localhost:3000/api`
 | `GET` | `/posts/:slug` | Read post |
 | `PUT` | `/posts/:slug` | Update post |
 | `DELETE` | `/posts/:slug` | Delete post |
-| `POST` | `/posts/:slug/comments` | Add comment |
-| `DELETE` | `/posts/:slug/comments/:id` | Delete comment |
 | `POST` | `/posts/:slug/favorite` | Favorite post |
 | `DELETE` | `/posts/:slug/favorite` | Unfavorite post |
 | `GET` | `/profiles/:username` | Read profile |
@@ -64,7 +61,6 @@ Base URL: `http://localhost:3000/api`
 src/
 auth/        # JWT strategy, auth endpoints, roles, and permissions
 cache/       # Redis cache integration
-comment/     # Comment entities, policies, and routes
 common/      # Shared decorators, guards, interceptors, and pipes
 database/    # TypeORM configuration
 posts/       # Article entities, DTOs, service, and routes

@@ -25,10 +25,16 @@ export class AuthService {
     const email = dto.email.toLowerCase().trim();
     const username = dto.username?.trim() || email.split("@")[0];
 
-    const existingUser = await this.userService.findByEmail(email);
+    const existingUser = await this.userRepository.findOne({
+      where: [{ email }, { username }],
+    });
 
     if (existingUser) {
-      throw new ConflictException("email already exists");
+      if (existingUser.email === email) {
+        throw new ConflictException("email already exists");
+      }
+
+      throw new ConflictException("username already exists");
     }
 
     const hashedPassword = await bcrypt.hash(dto.password, 10);

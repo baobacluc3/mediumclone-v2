@@ -20,9 +20,9 @@ import {
   CreateTagDto,
   PaginatedTagsDto,
   PaginationQueryDto,
+  TagResponseDto,
   UpdateTagDto,
 } from "./dto/tag.dto";
-import { TagEntity } from "./tag.entity";
 import { TagService } from "./tag.service";
 
 @Controller("tags")
@@ -35,7 +35,9 @@ export class TagController {
   }
 
   @Get(":id")
-  findOne(@Param("id", ParsePositiveIntPipe) id: number): Promise<TagEntity> {
+  findOne(
+    @Param("id", ParsePositiveIntPipe) id: number,
+  ): Promise<TagResponseDto> {
     return this.tagService.findOne(id);
   }
 
@@ -43,7 +45,7 @@ export class TagController {
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(JwtAuthGuard, AccessControlGuard)
   @RequirePermissions(Permission.MANAGE_TAGS)
-  create(@Body() createTagDto: CreateTagDto): Promise<TagEntity> {
+  create(@Body() createTagDto: CreateTagDto): Promise<TagResponseDto> {
     return this.tagService.create(createTagDto);
   }
 
@@ -53,7 +55,7 @@ export class TagController {
   update(
     @Param("id", ParsePositiveIntPipe) id: number,
     @Body() updateTagDto: UpdateTagDto,
-  ): Promise<TagEntity> {
+  ): Promise<TagResponseDto> {
     return this.tagService.update(id, updateTagDto);
   }
 

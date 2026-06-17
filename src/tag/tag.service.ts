@@ -10,6 +10,7 @@ import {
   CreateTagDto,
   PaginatedTagsDto,
   PaginationQueryDto,
+  TagResponseDto,
   UpdateTagDto,
 } from "./dto/tag.dto";
 import { TagEntity } from "./tag.entity";
@@ -51,7 +52,7 @@ export class TagService {
         this.logger.log(`Found ${total} tags (page ${page})`);
 
         return {
-          data,
+          data: data.map((tag) => this.toTagResponse(tag)),
           total,
           page,
           lastPage: Math.ceil(total / limit),
@@ -60,23 +61,17 @@ export class TagService {
     );
   }
 
-  async findOne(id: number): Promise<TagEntity> {
+  async findOne(id: number): Promise<TagResponseDto> {
     return this.cacheService.remember(
       this.buildTagDetailCacheKey(id),
       TAG_DETAIL_CACHE_TTL_SECONDS,
       async () => {
-        const tag = await this.tagRepository.findOne({ where: { id } });
-
-        if (!tag) {
-          throw new NotFoundException(`Tag with id ${id} not found`);
-        }
-
-        return tag;
+        return this.toTagResponse(await this.findEntityOrFail(id));
       },
     );
   }
 
-  async create(createTagDto: CreateTagDto): Promise<TagEntity> {
+  async create(createTagDto: CreateTagDto): Promise<TagResponseDto> {
     await this.assertNameIsUnique(createTagDto.name);
 
     const tag = this.tagRepository.create(createTagDto);
@@ -85,11 +80,11 @@ export class TagService {
     this.logger.log(`Created tag: ${saved.name} (id: ${saved.id})`);
     await this.clearTagCache(saved.id);
 
-    return saved;
+    return this.toTagResponse(saved);
   }
 
-  async update(id: number, updateTagDto: UpdateTagDto): Promise<TagEntity> {
-    const tag = await this.findOne(id);
+  async update(id: number, updateTagDto: UpdateTagDto): Promise<TagResponseDto> {
+    const tag = await this.findEntityOrFail(id);
 
     if (updateTagDto.name && updateTagDto.name !== tag.name) {
       await this.assertNameIsUnique(updateTagDto.name);
@@ -100,11 +95,11 @@ export class TagService {
     this.logger.log(`Updated tag id: ${id}`);
     await this.clearTagCache(id);
 
-    return updated;
+    return this.toTagResponse(updated);
   }
 
   async remove(id: number): Promise<void> {
-    const tag = await this.findOne(id);
+    const tag = await this.findEntityOrFail(id);
     await this.tagRepository.softRemove(tag);
 
     this.logger.log(`Soft deleted tag id: ${id}`);
@@ -117,6 +112,26 @@ export class TagService {
     if (existing) {
       throw new ConflictException(`Tag with name "${name}" already exists`);
     }
+  }
+
+  private async findEntityOrFail(id: number): Promise<TagEntity> {
+    const tag = await this.tagRepository.findOne({ where: { id } });
+
+    if (!tag) {
+      throw new NotFoundException(`Tag with id ${id} not found`);
+    }
+
+    return tag;
+  }
+
+  private toTagResponse(tag: TagEntity): TagResponseDto {
+    return {
+      id: tag.id,
+      name: tag.name,
+      description: tag.description,
+      createdAt: tag.createdAt,
+      updatedAt: tag.updatedAt,
+    };
   }
 
   private buildTagListCacheKey(query: PaginationQueryDto): string {

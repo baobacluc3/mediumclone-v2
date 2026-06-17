@@ -8,12 +8,16 @@ import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import { InjectRepository } from "@nestjs/typeorm";
 import * as bcrypt from "bcrypt";
-import { Not, Repository } from "typeorm";
+import { FindOptionsWhere, Not, Repository } from "typeorm";
 
 import { UpdateUserDto } from "./dto";
 import { UserEntity } from "./user.entity";
 import { UserRole } from "@/auth/types/auth-user.type";
 import { AuthTokens, JwtUserPayload } from "@/auth/auth.types";
+
+interface BuildUserResponseOptions {
+  includeToken?: boolean;
+}
 
 @Injectable()
 export class UserService {
@@ -65,22 +69,21 @@ export class UserService {
       throw new NotFoundException("User not found");
     }
 
-    if (dto.email || dto.username) {
+    const nextEmail = dto.email?.toLowerCase().trim();
+    const nextUsername = dto.username?.trim();
+    const uniqueWhere: FindOptionsWhere<UserEntity>[] = [];
+
+    if (nextEmail) {
+      uniqueWhere.push({ email: nextEmail, id: Not(id) });
+    }
+
+    if (nextUsername) {
+      uniqueWhere.push({ username: nextUsername, id: Not(id) });
+    }
+
+    if (uniqueWhere.length) {
       const existingUser = await this.userRepository.findOne({
-        where: [
-          dto.email
-            ? {
-                email: dto.email,
-                id: Not(id),
-              }
-            : {},
-          dto.username
-            ? {
-                username: dto.username,
-                id: Not(id),
-              }
-            : {},
-        ],
+        where: uniqueWhere,
       });
 
       if (existingUser) {
@@ -88,11 +91,26 @@ export class UserService {
       }
     }
 
-    if (dto.password) {
-      dto.password = await bcrypt.hash(dto.password, 10);
+    const {
+      password,
+      email: _email,
+      username: _username,
+      ...profileUpdates
+    } = dto;
+
+    Object.assign(user, profileUpdates);
+
+    if (nextEmail) {
+      user.email = nextEmail;
     }
 
-    Object.assign(user, dto);
+    if (nextUsername) {
+      user.username = nextUsername;
+    }
+
+    if (password) {
+      user.passwordHash = await bcrypt.hash(password, 10);
+    }
 
     const updatedUser = await this.userRepository.save(user);
 
@@ -128,7 +146,13 @@ export class UserService {
 
     user.roles = nextRoles;
 
-    return this.buildUserResponse(await this.userRepository.save(user));
+    return this.buildUserResponse(
+      await this.userRepository.save(user),
+      undefined,
+      {
+        includeToken: false,
+      },
+    );
   }
 
   async refreshTokens(refreshToken: string) {
@@ -204,8 +228,15 @@ export class UserService {
     return this.signAccessToken(user);
   }
 
-  buildUserResponse(user: UserEntity, tokens?: AuthTokens) {
-    const accessToken = tokens?.accessToken ?? this.generateJWT(user);
+  buildUserResponse(
+    user: UserEntity,
+    tokens?: AuthTokens,
+    options: BuildUserResponseOptions = {},
+  ) {
+    const includeToken = options.includeToken ?? true;
+    const accessToken = includeToken
+      ? (tokens?.accessToken ?? this.generateJWT(user))
+      : undefined;
 
     return {
       user: {
@@ -213,8 +244,7 @@ export class UserService {
         email: user.email,
         bio: user.bio || "",
         image: user.image || "",
-        token: accessToken,
-        accessToken,
+        ...(includeToken ? { token: accessToken, accessToken } : {}),
         ...(tokens?.refreshToken ? { refreshToken: tokens.refreshToken } : {}),
         roles: user.roles?.length ? user.roles : [UserRole.USER],
       },
@@ -224,10 +254,7 @@ export class UserService {
   private signAccessToken(user: UserEntity) {
     return this.jwtService.sign(this.createTokenPayload(user, "access"), {
       secret: this.configService.getOrThrow<string>("JWT_SECRET"),
-      expiresIn: this.configService.get<string>(
-        "JWT_ACCESS_EXPIRES_IN",
-        "15m",
-      ),
+      expiresIn: this.configService.get<string>("JWT_ACCESS_EXPIRES_IN", "15m"),
     });
   }
 
@@ -267,7 +294,9 @@ export class UserService {
     return normalizedRoles.length ? normalizedRoles : [UserRole.USER];
   }
 
-  private async assertAnotherAdminExists(currentAdminId: number): Promise<void> {
+  private async assertAnotherAdminExists(
+    currentAdminId: number,
+  ): Promise<void> {
     const adminCount = await this.userRepository
       .createQueryBuilder("user")
       .where("user.id != :currentAdminId", { currentAdminId })

@@ -3,7 +3,6 @@ import {
   PrimaryGeneratedColumn,
   Column,
   ManyToOne,
-  OneToMany,
   ManyToMany,
   JoinColumn,
   JoinTable,
@@ -13,7 +12,6 @@ import {
 } from "typeorm";
 import { UserEntity } from "../user/user.entity";
 import { TagEntity } from "../tag/tag.entity";
-import { CommentEntity } from "@/comment/comment.entity";
 
 @Entity("posts")
 @Index("idx_posts_created_at", ["createdAt"])
@@ -57,11 +55,4 @@ export class PostEntity {
   @ManyToOne(() => UserEntity, (user) => user.posts, { eager: false })
   @JoinColumn({ name: "authorId" })
   author: UserEntity;
-
-  @OneToMany(() => CommentEntity, (comment) => comment.post, {
-    cascade: true,
-  })
-  @JoinColumn()
-  comments: CommentEntity[];
-
 }

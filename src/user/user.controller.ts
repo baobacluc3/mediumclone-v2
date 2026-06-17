@@ -15,15 +15,19 @@ import { UserRO } from "./user.interface";
 import { UserService } from "./user.service";
 import { User } from "../common/decorators/user.decorator";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
+import { RequiredBodyPipe } from "@/common/pipes/required-body.pipe";
 import { AccessControlGuard } from "@/auth/authorization/access-control.guard";
 import { RequirePermissions } from "@/common/decorators/permissions.decorator";
 import { Permission } from "@/auth/permissions";
 import { AuthenticatedUser } from "@/auth/auth.types";
-import { UserRole } from "@/auth/types/auth-user.type";
+import { AccessControlService } from "@/auth/authorization/access-control.service";
 
 @Controller()
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(
+    private readonly userService: UserService,
+    private readonly accessControl: AccessControlService,
+  ) {}
 
   @Get("user")
   @UseGuards(JwtAuthGuard)
@@ -35,7 +39,7 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   async update(
     @User("id") userId: number,
-    @Body("user") dto: UpdateUserDto,
+    @Body("user", new RequiredBodyPipe("user")) dto: UpdateUserDto,
   ): Promise<UserRO> {
     return this.userService.update(userId, dto);
   }
@@ -46,7 +50,10 @@ export class UserController {
     @User() currentUser: AuthenticatedUser,
     @Param("id", ParsePositiveIntPipe) id: number,
   ): Promise<void> {
-    const canDeleteAny = currentUser.roles?.includes(UserRole.ADMIN);
+    const canDeleteAny = this.accessControl.hasEveryPermission(
+      currentUser.roles,
+      [Permission.DELETE_ANY_USER],
+    );
 
     if (currentUser.id !== id && !canDeleteAny) {
       throw new ForbiddenException("You can only delete your own account.");

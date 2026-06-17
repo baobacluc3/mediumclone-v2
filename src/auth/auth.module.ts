@@ -6,6 +6,7 @@ import { JwtModule } from "@nestjs/jwt";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { UserEntity } from "@/user/user.entity";
 import { ConfigModule, ConfigService } from "@nestjs/config";
+import { RateLimitGuard } from "@/common/guards/rate-limit.guard";
 
 @Module({
   imports: [
@@ -21,7 +22,7 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService],
+  providers: [AuthService, RateLimitGuard],
   exports: [AuthService],
 })
 export class AuthModule {}

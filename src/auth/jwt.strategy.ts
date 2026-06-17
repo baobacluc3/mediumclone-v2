@@ -45,12 +45,3 @@ export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
     }
   }
 }
-
-/*
-Mỗi khi client gửi request có kèm JWT token, file này sẽ:
-
-Trích xuất token từ header
-Xác minh token có hợp lệ không
-Tìm user trong database theo thông tin trong token
-Trả về thông tin user để các route tiếp theo sử dụng
-*/
