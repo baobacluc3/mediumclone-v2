@@ -71,7 +71,6 @@ npm run format
 | `GET` | `/user` | Read the current user |
 | `PUT` | `/user` | Update the current user |
 | `GET` | `/posts` | List posts |
-| `GET` | `/posts/feed` | List posts from followed authors |
 | `POST` | `/posts` | Create a post |
 | `GET` | `/posts/:slug` | Read a post |
 | `PUT` | `/posts/:slug` | Update a post |

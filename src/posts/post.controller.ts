@@ -3,7 +3,6 @@ import {
   Get,
   Post,
   Delete,
-  Query,
   Param,
   Put,
   Controller,
@@ -13,7 +12,7 @@ import {
 } from "@nestjs/common";
 
 import { PostService } from "./post.service";
-import { CreatePostDto, PostQueryDto, UpdatePostDto } from "./dto";
+import { CreatePostDto, UpdatePostDto } from "./dto";
 import { PostsRO, PostRO } from "./post.interface";
 import { User } from "../common/decorators/user.decorator";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
@@ -29,17 +28,8 @@ export class PostController {
   constructor(private readonly postService: PostService) {}
 
   @Get()
-  findAll(@Query() query: PostQueryDto): Promise<PostsRO> {
-    return this.postService.findAll(query);
-  }
-
-  @Get("feed")
-  @UseGuards(JwtAuthGuard)
-  getFeed(
-    @User("id") userId: number,
-    @Query() query: PostQueryDto,
-  ): Promise<PostsRO> {
-    return this.postService.findFeed(userId, query);
+  findAll(): Promise<PostsRO> {
+    return this.postService.findAll();
   }
 
   @Get(":slug")

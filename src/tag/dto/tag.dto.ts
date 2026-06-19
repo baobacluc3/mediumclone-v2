@@ -4,12 +4,7 @@ import {
   IsOptional,
   MaxLength,
   MinLength,
-  IsInt,
-  Min,
-  Max,
 } from "class-validator";
-
-import { Type } from "class-transformer";
 
 export class CreateTagDto {
   @IsString()
@@ -37,33 +32,10 @@ export class UpdateTagDto {
   description?: string;
 }
 
-export class PaginationQueryDto {
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  page?: number = 1;
-
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(100)
-  limit?: number = 10;
-
-  @IsOptional()
-  @IsString()
-  search?: string;
-}
-
-export class PaginatedTagsDto {
+export class TagsDto {
   data: TagResponseDto[];
 
   total: number;
-
-  page: number;
-
-  lastPage: number;
 }
 
 export class TagResponseDto {

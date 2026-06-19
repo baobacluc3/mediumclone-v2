@@ -16,6 +16,7 @@ export class AccessControlService {
     return [...new Set(normalized)].filter((role) => role in ROLE_LEVEL);
   }
 
+  //Does the user have at least one of the required roles?
   hasAnyRole(
     userRoles: UserRole[] = [],
     requiredRoles: UserRole[] = [],
@@ -33,6 +34,7 @@ export class AccessControlService {
     );
   }
 
+  //Does the user have ALL of the required permissions?
   hasEveryPermission(
     userRoles: UserRole[] = [],
     requiredPermissions: Permission[] = [],

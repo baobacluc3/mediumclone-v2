@@ -5,11 +5,10 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { ILike, Repository } from "typeorm";
+import { Repository } from "typeorm";
 import {
   CreateTagDto,
-  PaginatedTagsDto,
-  PaginationQueryDto,
+  TagsDto,
   TagResponseDto,
   UpdateTagDto,
 } from "./dto/tag.dto";
@@ -29,33 +28,20 @@ export class TagService {
     private readonly cacheService: RedisCacheService,
   ) {}
 
-  async findAll(query: PaginationQueryDto): Promise<PaginatedTagsDto> {
-    const cacheKey = this.buildTagListCacheKey(query);
-
+  async findAll(): Promise<TagsDto> {
     return this.cacheService.remember(
-      cacheKey,
+      this.buildTagListCacheKey(),
       TAG_LIST_CACHE_TTL_SECONDS,
       async () => {
-        const page = query.page ?? 1;
-        const limit = query.limit ?? 10;
-        const { search } = query;
-        const skip = (page - 1) * limit;
-        const where = search ? { name: ILike(`%${search}%`) } : {};
-
         const [data, total] = await this.tagRepository.findAndCount({
-          where,
           order: { createdAt: "DESC" },
-          skip,
-          take: limit,
         });
 
-        this.logger.log(`Found ${total} tags (page ${page})`);
+        this.logger.log(`Found ${total} tags`);
 
         return {
           data: data.map((tag) => this.toTagResponse(tag)),
           total,
-          page,
-          lastPage: Math.ceil(total / limit),
         };
       },
     );
@@ -134,14 +120,8 @@ export class TagService {
     };
   }
 
-  private buildTagListCacheKey(query: PaginationQueryDto): string {
-    const cacheQuery = {
-      page: query.page ?? 1,
-      limit: query.limit ?? 10,
-      search: query.search ?? "",
-    };
-
-    return `tags:list:${JSON.stringify(cacheQuery)}`;
+  private buildTagListCacheKey(): string {
+    return "tags:list:all";
   }
 
   private buildTagDetailCacheKey(id: number): string {

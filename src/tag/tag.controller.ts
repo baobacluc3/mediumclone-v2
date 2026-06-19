@@ -8,7 +8,6 @@ import {
   Param,
   Post,
   Put,
-  Query,
   UseGuards,
 } from "@nestjs/common";
 import { ParsePositiveIntPipe } from "../common/pipes/parse-positive-int.pipe";
@@ -18,8 +17,7 @@ import { RequirePermissions } from "@/common/decorators/permissions.decorator";
 import { JwtAuthGuard } from "@/common/guards/jwt-auth.guard";
 import {
   CreateTagDto,
-  PaginatedTagsDto,
-  PaginationQueryDto,
+  TagsDto,
   TagResponseDto,
   UpdateTagDto,
 } from "./dto/tag.dto";
@@ -30,8 +28,8 @@ export class TagController {
   constructor(private readonly tagService: TagService) {}
 
   @Get()
-  findAll(@Query() query: PaginationQueryDto): Promise<PaginatedTagsDto> {
-    return this.tagService.findAll(query);
+  findAll(): Promise<TagsDto> {
+    return this.tagService.findAll();
   }
 
   @Get(":id")

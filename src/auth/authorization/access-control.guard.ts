@@ -22,6 +22,7 @@ export class AccessControlGuard implements CanActivate {
   ) {}
 
   canActivate(context: ExecutionContext): boolean {
+    //Read metadata from the route
     const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(
       REQUIRED_ROLES_KEY,
       [context.getHandler(), context.getClass()],
@@ -31,10 +32,12 @@ export class AccessControlGuard implements CanActivate {
       [context.getHandler(), context.getClass()],
     );
 
+    //Early exit for public routes
     if (!requiredRoles?.length && !requiredPermissions?.length) {
       return true;
     }
 
+    //Get the logged-in user
     const request = context.switchToHttp().getRequest<{ user?: AuthUser }>();
     const user = request.user;
 
@@ -42,6 +45,7 @@ export class AccessControlGuard implements CanActivate {
       throw new ForbiddenException("Authentication is required.");
     }
 
+    //Run both checks
     const hasRequiredRole = this.accessControl.hasAnyRole(
       user.roles,
       requiredRoles,
@@ -51,10 +55,34 @@ export class AccessControlGuard implements CanActivate {
       requiredPermissions,
     );
 
+    //Allow or Deny
     if (!hasRequiredRole || !hasRequiredPermissions) {
-      throw new ForbiddenException("You do not have permission for this action.");
+      throw new ForbiddenException(
+        "You do not have permission for this action.",
+      );
     }
 
     return true;
   }
 }
+
+/*
+
+Incoming Request
+      ↓
+AccessControlGuard.canActivate()
+      ↓
+Read @RequireRoles / @RequirePermissions from route
+      ↓
+No decorators? ──────────────────────────→ ✅ Allow (public)
+      ↓
+No user on request? ─────────────────────→ ❌ 403 (not logged in)
+      ↓
+hasAnyRole() + hasEveryPermission()
+      ↓
+Both pass? ──────────────────────────────→ ✅ Allow
+Either fails? ───────────────────────────→ ❌ 403 (not authorized)
+      ↓
+Controller runs
+
+*/

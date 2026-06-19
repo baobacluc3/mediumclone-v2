@@ -11,10 +11,9 @@ import { randomBytes } from "crypto";
 
 import { PostEntity } from "./post.entity";
 import { UserEntity } from "../user/user.entity";
-import { FollowsEntity } from "../profile/follows.entity";
 import { TagEntity } from "../tag/tag.entity";
 import { RedisCacheService } from "../cache/redis-cache.service";
-import { CreatePostDto, PostQueryDto } from "./dto";
+import { CreatePostDto } from "./dto";
 import { PostResponse, PostRO, PostsRO } from "./post.interface";
 import { AccessControlService } from "@/auth/authorization/access-control.service";
 import { Permission } from "@/auth/permissions";
@@ -30,19 +29,15 @@ export class PostService {
     private readonly postRepository: Repository<PostEntity>,
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
-    @InjectRepository(FollowsEntity)
-    private readonly followsRepository: Repository<FollowsEntity>,
     @InjectRepository(TagEntity)
     private readonly tagRepository: Repository<TagEntity>,
     private readonly cacheService: RedisCacheService,
     private readonly accessControl: AccessControlService,
   ) {}
 
-  async findAll(query: PostQueryDto): Promise<PostsRO> {
-    const cacheKey = this.buildPostListCacheKey(query);
-
+  async findAll(): Promise<PostsRO> {
     return this.cacheService.remember(
-      cacheKey,
+      this.buildPostListCacheKey(),
       POST_LIST_CACHE_TTL_SECONDS,
       async () => {
         const qb = this.postRepository
@@ -51,33 +46,7 @@ export class PostService {
           .leftJoinAndSelect("post.tags", "tags")
           .orderBy("post.createdAt", "DESC");
 
-        if (query.tag) {
-          qb.innerJoin("post.tags", "filterTag", "filterTag.name = :tag", {
-            tag: query.tag,
-          });
-        }
-
-        if (query.author) {
-          const author = await this.userRepository.findOneBy({
-            username: query.author,
-          });
-          if (!author) return { posts: [], postsCount: 0 };
-          qb.andWhere("post.authorId = :id", { id: author.id });
-        }
-
-        if (query.favorited) {
-          const user = await this.userRepository.findOne({
-            where: { username: query.favorited },
-            relations: ["favorites"],
-          });
-          if (!user) return { posts: [], postsCount: 0 };
-          const ids = user.favorites.map((a) => a.id);
-          if (ids.length === 0) return { posts: [], postsCount: 0 };
-          qb.andWhere("post.id IN (:...ids)", { ids });
-        }
-
         const postsCount = await qb.getCount();
-        qb.skip(query.offset).take(query.limit);
         const posts = await qb.getMany();
 
         return {
@@ -86,32 +55,6 @@ export class PostService {
         };
       },
     );
-  }
-
-  async findFeed(userId: number, query: PostQueryDto): Promise<PostsRO> {
-    const follows = await this.followsRepository.findBy({ followerId: userId });
-
-    if (!follows.length) {
-      return { posts: [], postsCount: 0 };
-    }
-
-    const ids = follows.map((f) => f.followingId);
-
-    const qb = this.postRepository
-      .createQueryBuilder("post")
-      .leftJoinAndSelect("post.author", "author")
-      .leftJoinAndSelect("post.tags", "tags")
-      .where("post.authorId IN (:...ids)", { ids })
-      .orderBy("post.createdAt", "DESC");
-
-    const postsCount = await qb.getCount();
-    qb.skip(query.offset).take(query.limit);
-    const posts = await qb.getMany();
-
-    return {
-      posts: posts.map((post) => this.toPostResponse(post)),
-      postsCount,
-    };
   }
 
   async findOne(slug: string): Promise<PostRO> {
@@ -295,16 +238,8 @@ export class PostService {
     return `${slugify(title, { lower: true })}-${suffix}`;
   }
 
-  private buildPostListCacheKey(query: PostQueryDto): string {
-    const cacheQuery = {
-      tag: query.tag ?? "",
-      author: query.author ?? "",
-      favorited: query.favorited ?? "",
-      limit: query.limit ?? 20,
-      offset: query.offset ?? 0,
-    };
-
-    return `posts:list:${JSON.stringify(cacheQuery)}`;
+  private buildPostListCacheKey(): string {
+    return "posts:list:all";
   }
 
   private buildPostDetailCacheKey(slug: string): string {
