@@ -91,12 +91,10 @@ export class UserService {
       }
     }
 
-    const {
-      password,
-      email: _email,
-      username: _username,
-      ...profileUpdates
-    } = dto;
+    //Email, username and password are handled explicitly below.
+    const { password, ...profileUpdates } = dto;
+    delete profileUpdates.email;
+    delete profileUpdates.username;
 
     Object.assign(user, profileUpdates);
 
@@ -124,6 +122,12 @@ export class UserService {
 
     if (!user) {
       throw new NotFoundException("User not found");
+    }
+
+    //Same lockout protection as updateRoles: the system must always keep
+    //at least one admin able to manage roles.
+    if (user.roles?.includes(UserRole.ADMIN)) {
+      await this.assertAnotherAdminExists(id);
     }
 
     await this.userRepository.delete(id);

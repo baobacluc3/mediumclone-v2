@@ -99,10 +99,11 @@ export class PostService {
     const oldSlug = post.slug;
 
     if (
-      post.author.id !== user.id &&
-      !this.accessControl.hasEveryPermission(user.roles, [
+      !this.accessControl.isOwnerOrHasPermission(
+        user,
+        post.author.id,
         Permission.UPDATE_ANY_ARTICLE,
-      ])
+      )
     ) {
       throw new ForbiddenException("You can only edit your own posts");
     }
@@ -129,10 +130,11 @@ export class PostService {
     const post = await this.findPostOrFail(slug, ["author"]);
 
     if (
-      post.author.id !== user.id &&
-      !this.accessControl.hasEveryPermission(user.roles, [
+      !this.accessControl.isOwnerOrHasPermission(
+        user,
+        post.author.id,
         Permission.DELETE_ANY_ARTICLE,
-      ])
+      )
     ) {
       throw new ForbiddenException("You can only delete your own posts");
     }

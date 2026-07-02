@@ -8,17 +8,15 @@ import {
   Controller,
   HttpCode,
   HttpStatus,
-  UseGuards,
 } from "@nestjs/common";
 
 import { PostService } from "./post.service";
 import { CreatePostDto, UpdatePostDto } from "./dto";
 import { PostsRO, PostRO } from "./post.interface";
 import { User } from "../common/decorators/user.decorator";
-import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
+import { Public } from "@/common/decorators/public.decorator";
 import { RequiredBodyPipe } from "@/common/pipes/required-body.pipe";
 import { SlugValidationPipe } from "../common/pipes/slug-validation.pipe";
-import { AccessControlGuard } from "@/auth/authorization/access-control.guard";
 import { RequirePermissions } from "@/common/decorators/permissions.decorator";
 import { Permission } from "@/auth/permissions";
 import { AuthenticatedUser } from "@/auth/auth.types";
@@ -27,18 +25,19 @@ import { AuthenticatedUser } from "@/auth/auth.types";
 export class PostController {
   constructor(private readonly postService: PostService) {}
 
+  @Public()
   @Get()
   findAll(): Promise<PostsRO> {
     return this.postService.findAll();
   }
 
+  @Public()
   @Get(":slug")
   findOne(@Param("slug", SlugValidationPipe) slug: string): Promise<PostRO> {
     return this.postService.findOne(slug);
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard, AccessControlGuard)
   @RequirePermissions(Permission.CREATE_ARTICLE)
   create(
     @User("id") userId: number,
@@ -48,7 +47,6 @@ export class PostController {
   }
 
   @Put(":slug")
-  @UseGuards(JwtAuthGuard)
   update(
     @User() user: AuthenticatedUser,
     @Param("slug", SlugValidationPipe) slug: string,
@@ -59,7 +57,6 @@ export class PostController {
 
   @HttpCode(HttpStatus.NO_CONTENT)
   @Delete(":slug")
-  @UseGuards(JwtAuthGuard)
   async delete(
     @User() user: AuthenticatedUser,
     @Param("slug", SlugValidationPipe) slug: string,
@@ -68,7 +65,6 @@ export class PostController {
   }
 
   @Post(":slug/favorite")
-  @UseGuards(JwtAuthGuard)
   favorite(
     @User("id") userId: number,
     @Param("slug", SlugValidationPipe) slug: string,
@@ -78,7 +74,6 @@ export class PostController {
 
   @HttpCode(HttpStatus.OK)
   @Delete(":slug/favorite")
-  @UseGuards(JwtAuthGuard)
   unFavorite(
     @User("id") userId: number,
     @Param("slug", SlugValidationPipe) slug: string,

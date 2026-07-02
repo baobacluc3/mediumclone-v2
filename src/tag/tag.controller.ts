@@ -8,13 +8,11 @@ import {
   Param,
   Post,
   Put,
-  UseGuards,
 } from "@nestjs/common";
 import { ParsePositiveIntPipe } from "../common/pipes/parse-positive-int.pipe";
-import { AccessControlGuard } from "@/auth/authorization/access-control.guard";
 import { Permission } from "@/auth/permissions";
+import { Public } from "@/common/decorators/public.decorator";
 import { RequirePermissions } from "@/common/decorators/permissions.decorator";
-import { JwtAuthGuard } from "@/common/guards/jwt-auth.guard";
 import {
   CreateTagDto,
   TagsDto,
@@ -27,11 +25,13 @@ import { TagService } from "./tag.service";
 export class TagController {
   constructor(private readonly tagService: TagService) {}
 
+  @Public()
   @Get()
   findAll(): Promise<TagsDto> {
     return this.tagService.findAll();
   }
 
+  @Public()
   @Get(":id")
   findOne(
     @Param("id", ParsePositiveIntPipe) id: number,
@@ -41,14 +41,12 @@ export class TagController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  @UseGuards(JwtAuthGuard, AccessControlGuard)
   @RequirePermissions(Permission.MANAGE_TAGS)
   create(@Body() createTagDto: CreateTagDto): Promise<TagResponseDto> {
     return this.tagService.create(createTagDto);
   }
 
   @Put(":id")
-  @UseGuards(JwtAuthGuard, AccessControlGuard)
   @RequirePermissions(Permission.MANAGE_TAGS)
   update(
     @Param("id", ParsePositiveIntPipe) id: number,
@@ -59,7 +57,6 @@ export class TagController {
 
   @Delete(":id")
   @HttpCode(HttpStatus.NO_CONTENT)
-  @UseGuards(JwtAuthGuard, AccessControlGuard)
   @RequirePermissions(Permission.MANAGE_TAGS)
   remove(@Param("id", ParsePositiveIntPipe) id: number): Promise<void> {
     return this.tagService.remove(id);

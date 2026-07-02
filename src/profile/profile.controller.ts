@@ -6,17 +6,17 @@ import {
   Controller,
   HttpCode,
   HttpStatus,
-  UseGuards,
 } from "@nestjs/common";
 import { ProfileService } from "./profile.service";
 import { ProfileRO } from "./profile.interface";
 import { User } from "../common/decorators/user.decorator";
-import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
+import { Public } from "@/common/decorators/public.decorator";
 
 @Controller("profiles")
 export class ProfileController {
   constructor(private readonly profileService: ProfileService) {}
 
+  @Public()
   @Get(":username")
   async getProfile(
     @User("id") userId: number,
@@ -27,7 +27,6 @@ export class ProfileController {
 
   @Post(":username/follow")
   @HttpCode(HttpStatus.OK)
-  @UseGuards(JwtAuthGuard)
   async follow(
     @User("email") email: string,
     @Param("username") username: string,
@@ -37,7 +36,6 @@ export class ProfileController {
 
   @Delete(":username/follow")
   @HttpCode(HttpStatus.OK)
-  @UseGuards(JwtAuthGuard)
   async unFollow(
     @User("id") userId: number,
     @Param("username") username: string,
