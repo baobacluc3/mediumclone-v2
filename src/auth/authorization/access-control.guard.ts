@@ -3,6 +3,7 @@ import {
   ExecutionContext,
   ForbiddenException,
   Injectable,
+  UnauthorizedException,
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 
@@ -41,8 +42,9 @@ export class AccessControlGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<{ user?: AuthUser }>();
     const user = request.user;
 
+    //401, not 403: the caller is not authenticated at all.
     if (!user) {
-      throw new ForbiddenException("Authentication is required.");
+      throw new UnauthorizedException("Authentication is required.");
     }
 
     //Run both checks
@@ -76,7 +78,7 @@ Read @RequireRoles / @RequirePermissions from route
       ↓
 No decorators? ──────────────────────────→ ✅ Allow (public)
       ↓
-No user on request? ─────────────────────→ ❌ 403 (not logged in)
+No user on request? ─────────────────────→ ❌ 401 (not logged in)
       ↓
 hasAnyRole() + hasEveryPermission()
       ↓

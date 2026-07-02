@@ -6,7 +6,6 @@ import {
   Param,
   Patch,
   Put,
-  UseGuards,
   ForbiddenException,
 } from "@nestjs/common";
 import { ParsePositiveIntPipe } from "../common/pipes/parse-positive-int.pipe";
@@ -14,9 +13,7 @@ import { UpdateUserDto, UpdateUserRolesDto } from "./dto";
 import { UserRO } from "./user.interface";
 import { UserService } from "./user.service";
 import { User } from "../common/decorators/user.decorator";
-import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { RequiredBodyPipe } from "@/common/pipes/required-body.pipe";
-import { AccessControlGuard } from "@/auth/authorization/access-control.guard";
 import { RequirePermissions } from "@/common/decorators/permissions.decorator";
 import { Permission } from "@/auth/permissions";
 import { AuthenticatedUser } from "@/auth/auth.types";
@@ -30,13 +27,11 @@ export class UserController {
   ) {}
 
   @Get("user")
-  @UseGuards(JwtAuthGuard)
   async findMe(@User("id") userId: number): Promise<UserRO> {
     return this.userService.findById(userId);
   }
 
   @Put("user")
-  @UseGuards(JwtAuthGuard)
   async update(
     @User("id") userId: number,
     @Body("user", new RequiredBodyPipe("user")) dto: UpdateUserDto,
@@ -45,17 +40,17 @@ export class UserController {
   }
 
   @Delete("users/:id")
-  @UseGuards(JwtAuthGuard)
   async delete(
     @User() currentUser: AuthenticatedUser,
     @Param("id", ParsePositiveIntPipe) id: number,
   ): Promise<void> {
-    const canDeleteAny = this.accessControl.hasEveryPermission(
-      currentUser.roles,
-      [Permission.DELETE_ANY_USER],
+    const canDelete = this.accessControl.isOwnerOrHasPermission(
+      currentUser,
+      id,
+      Permission.DELETE_ANY_USER,
     );
 
-    if (currentUser.id !== id && !canDeleteAny) {
+    if (!canDelete) {
       throw new ForbiddenException("You can only delete your own account.");
     }
 
@@ -63,7 +58,6 @@ export class UserController {
   }
 
   @Patch("users/:id/roles")
-  @UseGuards(JwtAuthGuard, AccessControlGuard)
   @RequirePermissions(Permission.MANAGE_USER_ROLES)
   updateRoles(
     @Param("id", ParsePositiveIntPipe) id: number,

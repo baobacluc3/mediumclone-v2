@@ -8,7 +8,7 @@ NestJS REST API for a small Medium-style publishing app. It includes local email
 - TypeORM with PostgreSQL
 - Redis cache
 - JWT auth with refresh token rotation
-- Role and permission checks
+- Hierarchical RBAC (roles + fine-grained permissions), secure by default
 
 ## Getting Started
 
@@ -58,7 +58,21 @@ npm run build
 npm run start:dev
 npm run lint
 npm run format
+npm test
 ```
+
+## Authorization (RBAC)
+
+Authorization is **deny by default**: `JwtAuthGuard` and `AccessControlGuard` are registered as global guards, so every route requires a valid access token unless it is explicitly marked `@Public()`. A new endpoint can never be accidentally exposed by forgetting a guard.
+
+- **Roles** (`user` < `moderator` < `admin`) form a hierarchy. A higher role satisfies any lower role requirement, and each role inherits all permissions of the roles below it — permissions are declared once per level and composed automatically.
+- **Permissions** are fine-grained strings (e.g. `article:delete:any`, `tag:manage`) attached to routes with `@RequirePermissions(...)`. Routes can also require roles with `@Roles(...)`.
+- **Ownership policies** (edit/delete your own post or account) use a single `isOwnerOrHasPermission` policy in `AccessControlService`: the owner is always allowed, others need the admin override permission.
+- **Live role changes**: the JWT strategy reloads the user from the database on every request, so revoking a role takes effect immediately instead of when the token expires.
+- **Lockout protection**: the last remaining admin can neither be demoted nor deleted.
+- Unauthenticated requests get `401`; authenticated requests without sufficient rights get `403`.
+
+The authorization layer is covered by unit tests (`npm test`).
 
 ## Main Routes
 

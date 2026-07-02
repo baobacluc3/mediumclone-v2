@@ -1,13 +1,7 @@
 import { Injectable } from "@nestjs/common";
 
-import { Permission, ROLE_PERMISSIONS } from "../permissions";
-import { UserRole } from "../types/auth-user.type";
-
-const ROLE_LEVEL: Record<UserRole, number> = {
-  [UserRole.USER]: 1,
-  [UserRole.MODERATOR]: 2,
-  [UserRole.ADMIN]: 3,
-};
+import { Permission, ROLE_LEVEL, ROLE_PERMISSIONS } from "../permissions";
+import { AuthUser, UserRole } from "../types/auth-user.type";
 
 @Injectable()
 export class AccessControlService {
@@ -47,6 +41,19 @@ export class AccessControlService {
 
     return requiredPermissions.every((permission) =>
       userPermissions.has(permission),
+    );
+  }
+
+  //Owner-or-permission policy: the user may act on the resource if they own
+  //it, or if their roles grant the override permission (e.g. admin actions).
+  isOwnerOrHasPermission(
+    user: AuthUser,
+    resourceOwnerId: number,
+    overridePermission: Permission,
+  ): boolean {
+    return (
+      user.id === resourceOwnerId ||
+      this.hasEveryPermission(user.roles, [overridePermission])
     );
   }
 

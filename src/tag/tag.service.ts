@@ -69,7 +69,10 @@ export class TagService {
     return this.toTagResponse(saved);
   }
 
-  async update(id: number, updateTagDto: UpdateTagDto): Promise<TagResponseDto> {
+  async update(
+    id: number,
+    updateTagDto: UpdateTagDto,
+  ): Promise<TagResponseDto> {
     const tag = await this.findEntityOrFail(id);
 
     if (updateTagDto.name && updateTagDto.name !== tag.name) {
