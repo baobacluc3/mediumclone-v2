@@ -63,15 +63,14 @@ export class AuthService {
       }),
     );
 
-    // A failed email must not fail the registration itself; the user can
-    // always hit "resend verification" later.
-    try {
-      await this.sendVerificationEmail(user);
-    } catch (error) {
+    // Fire-and-forget: an SMTP handshake can take longer than the global
+    // request timeout, and a failed send must not fail registration itself.
+    // The user can always hit "resend verification" later.
+    this.sendVerificationEmail(user).catch((error: unknown) => {
       this.logger.warn(
         `Could not send verification email to ${user.email}: ${String(error)}`,
       );
-    }
+    });
 
     const tokens = await this.userService.issueTokenPair(user);
 
@@ -150,13 +149,11 @@ export class AuthService {
     const user = await this.userService.findByEmail(email);
 
     if (user && !user.emailVerified) {
-      try {
-        await this.sendVerificationEmail(user);
-      } catch (error) {
+      this.sendVerificationEmail(user).catch((error: unknown) => {
         this.logger.warn(
           `Could not resend verification email to ${user.email}: ${String(error)}`,
         );
-      }
+      });
     }
 
     return {
@@ -177,8 +174,8 @@ export class AuthService {
         passwordResetExpiresAt: new Date(Date.now() + RESET_TTL_MS),
       });
 
-      try {
-        await this.mailService.send({
+      this.mailService
+        .send({
           to: user.email,
           subject: "Reset your password",
           text:
@@ -187,12 +184,12 @@ export class AuthService {
             `The link below is valid for 1 hour:\n\n` +
             `${this.mailService.frontendUrl()}/reset-password?token=${token}\n\n` +
             `If you didn't ask for this, you can safely ignore this email.`,
+        })
+        .catch((error: unknown) => {
+          this.logger.warn(
+            `Could not send password reset email to ${user.email}: ${String(error)}`,
+          );
         });
-      } catch (error) {
-        this.logger.warn(
-          `Could not send password reset email to ${user.email}: ${String(error)}`,
-        );
-      }
     }
 
     return {

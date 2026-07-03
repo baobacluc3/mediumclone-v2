@@ -35,6 +35,11 @@ export class MailService {
           port: Number(this.configService.get<string>("SMTP_PORT", "587")),
           secure:
             this.configService.get<string>("SMTP_SECURE", "false") === "true",
+          // Fail fast rather than hang: callers treat send() as
+          // fire-and-forget, so a stuck connection should surface quickly.
+          connectionTimeout: 10_000,
+          greetingTimeout: 10_000,
+          socketTimeout: 10_000,
           auth: {
             user: this.configService.get<string>("SMTP_USER"),
             pass: this.configService.get<string>("SMTP_PASS"),
