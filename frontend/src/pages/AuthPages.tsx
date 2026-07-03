@@ -60,6 +60,9 @@ export function LoginPage() {
               onChange={(event) => setPassword(event.target.value)}
               required
             />
+            <p className="hint" style={{ margin: "0.4rem 0 0" }}>
+              <Link to="/forgot-password">Forgot password?</Link>
+            </p>
           </div>
           <button type="submit" className="btn btn-primary" disabled={busy}>
             {busy ? "Signing in…" : "Sign in"}

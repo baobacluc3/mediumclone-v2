@@ -107,8 +107,11 @@ export class UserService {
 
     Object.assign(user, profileUpdates);
 
-    if (nextEmail) {
+    if (nextEmail && nextEmail !== user.email) {
       user.email = nextEmail;
+      // The new address has never been confirmed; the banner's resend button
+      // lets the user trigger a fresh verification email.
+      user.emailVerified = false;
     }
 
     if (nextUsername) {
@@ -270,6 +273,7 @@ export class UserService {
       user: {
         username: user.username,
         email: user.email,
+        emailVerified: user.emailVerified,
         bio: user.bio || "",
         image: user.image || "",
         ...(includeToken ? { token: accessToken, accessToken } : {}),

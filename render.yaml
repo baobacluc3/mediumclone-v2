@@ -36,6 +36,10 @@ services:
         value: 7d
       - key: ALLOWED_ORIGINS
         value: https://mediumclone-frontend.onrender.com
+      - key: FRONTEND_URL
+        value: https://mediumclone-frontend.onrender.com
+      # SMTP_* are optional: without them, verification/reset emails are
+      # logged to the service console (visible under Logs in the dashboard).
       - key: REDIS_URL
         fromService:
           type: keyvalue

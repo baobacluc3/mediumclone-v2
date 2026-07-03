@@ -49,6 +49,7 @@ export interface Profile {
 export interface CurrentUser {
   username: string;
   email: string;
+  emailVerified: boolean;
   bio: string;
   image: string;
   roles: string[];
