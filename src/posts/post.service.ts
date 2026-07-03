@@ -16,6 +16,7 @@ import slugify from "slug";
 import { randomBytes } from "crypto";
 
 import { PostEntity } from "./post.entity";
+import { FollowsEntity } from "../profile/follows.entity";
 import { UserEntity } from "../user/user.entity";
 import { TagEntity } from "../tag/tag.entity";
 import { CreatePostDto, FindPostsQueryDto } from "./dto";
@@ -34,11 +35,42 @@ export class PostService {
     private readonly abilityFactory: CaslAbilityFactory,
   ) {}
 
-  async findAll(query: FindPostsQueryDto): Promise<PostsRO> {
+  async findAll(
+    query: FindPostsQueryDto,
+    currentUserId?: number,
+  ): Promise<PostsRO> {
+    return this.list(query, currentUserId);
+  }
+
+  /** Posts authored by users the caller follows, newest first. */
+  async feed(userId: number, query: FindPostsQueryDto): Promise<PostsRO> {
+    return this.list(query, userId, userId);
+  }
+
+  private async list(
+    query: FindPostsQueryDto,
+    currentUserId?: number,
+    onlyFollowedBy?: number,
+  ): Promise<PostsRO> {
     const qb = this.postRepository
       .createQueryBuilder("post")
       .leftJoinAndSelect("post.author", "author")
       .leftJoinAndSelect("post.tags", "tags");
+
+    if (onlyFollowedBy) {
+      // Correlated EXISTS over the follows table, mirroring the `favorited`
+      // filter below: pagination stays on distinct posts.
+      qb.andWhere((subQb) => {
+        const sub = subQb
+          .subQuery()
+          .select("follow.id")
+          .from(FollowsEntity, "follow")
+          .where("follow.followerId = :feedUserId")
+          .andWhere("follow.followingId = post.authorId")
+          .getQuery();
+        return `EXISTS ${sub}`;
+      }).setParameter("feedUserId", onlyFollowedBy);
+    }
 
     // Filters use inner joins on relations (no raw join-table names) so an
     // unknown tag/author/favoriter yields an empty page rather than an error.
@@ -91,16 +123,49 @@ export class PostService {
 
     const [posts, postsCount] = await qb.getManyAndCount();
 
+    const favoritedIds = await this.favoritedPostIds(
+      currentUserId,
+      posts.map((post) => post.id),
+    );
+
     return {
-      posts: posts.map((post) => this.toPostResponse(post)),
+      posts: posts.map((post) =>
+        this.toPostResponse(post, favoritedIds.has(post.id)),
+      ),
       postsCount,
     };
   }
 
-  async findOne(slug: string): Promise<PostRO> {
+  async findOne(slug: string, currentUserId?: number): Promise<PostRO> {
     const post = await this.findPostOrFail(slug, ["author", "tags"]);
 
-    return { post: this.toPostResponse(post) };
+    const favorited = currentUserId
+      ? await this.isFavorited(this.dataSource.manager, currentUserId, post.id)
+      : false;
+
+    return { post: this.toPostResponse(post, favorited) };
+  }
+
+  /** Which of `postIds` the caller currently favorites, in one query over the
+   * owning relation (no raw join-table names). */
+  private async favoritedPostIds(
+    userId: number | undefined,
+    postIds: number[],
+  ): Promise<Set<number>> {
+    if (!userId || postIds.length === 0) {
+      return new Set();
+    }
+
+    const rows = await this.dataSource
+      .getRepository(UserEntity)
+      .createQueryBuilder("u")
+      .innerJoin("u.favorites", "fav")
+      .select("fav.id", "id")
+      .where("u.id = :userId", { userId })
+      .andWhere("fav.id IN (:...postIds)", { postIds })
+      .getRawMany<{ id: number }>();
+
+    return new Set(rows.map((row) => Number(row.id)));
   }
 
   async create(userId: number, dto: CreatePostDto): Promise<PostRO> {
@@ -159,7 +224,13 @@ export class PostService {
       return manager.save(post);
     });
 
-    return { post: this.toPostResponse(updated) };
+    const favorited = await this.isFavorited(
+      this.dataSource.manager,
+      user.id,
+      updated.id,
+    );
+
+    return { post: this.toPostResponse(updated, favorited) };
   }
 
   async delete(slug: string, user: AuthUser): Promise<DeleteResult> {
@@ -236,7 +307,8 @@ export class PostService {
       });
     });
 
-    return { post: this.toPostResponse(post) };
+    // The transaction just set the caller's favorite to exactly this state.
+    return { post: this.toPostResponse(post, shouldFavorite) };
   }
 
   /** Whether `userId` currently favorites `postId`, checked via the join table
@@ -310,12 +382,13 @@ export class PostService {
     return [...new Set(normalized)];
   }
 
-  private toPostResponse(post: PostEntity): PostResponse {
+  private toPostResponse(post: PostEntity, favorited = false): PostResponse {
     const { tags, author, ...postData } = post;
 
     return {
       ...postData,
       tagList: (tags ?? []).map((tag) => tag.name),
+      favorited,
       author: {
         id: author.id,
         username: author.username,

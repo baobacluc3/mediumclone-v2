@@ -32,14 +32,29 @@ export class PostController {
 
   @Get()
   @Public()
-  findAll(@Query() query: FindPostsQueryDto): Promise<PostsRO> {
-    return this.postService.findAll(query);
+  findAll(
+    @Query() query: FindPostsQueryDto,
+    @User("id") userId?: number,
+  ): Promise<PostsRO> {
+    return this.postService.findAll(query, userId);
+  }
+
+  // Declared before ":slug" so "feed" is never parsed as a slug.
+  @Get("feed")
+  feed(
+    @User("id") userId: number,
+    @Query() query: FindPostsQueryDto,
+  ): Promise<PostsRO> {
+    return this.postService.feed(userId, query);
   }
 
   @Get(":slug")
   @Public()
-  findOne(@Param("slug", SlugValidationPipe) slug: string): Promise<PostRO> {
-    return this.postService.findOne(slug);
+  findOne(
+    @Param("slug", SlugValidationPipe) slug: string,
+    @User("id") userId?: number,
+  ): Promise<PostRO> {
+    return this.postService.findOne(slug, userId);
   }
 
   @Post()

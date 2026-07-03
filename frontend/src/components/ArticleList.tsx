@@ -48,7 +48,7 @@ export function ArticlePreview({ article }: { article: Article }) {
           <span />
         )}
         <span className="heart">
-          <HeartIcon filled={article.favoriteCount > 0} />
+          <HeartIcon filled={article.favorited} />
           {article.favoriteCount}
         </span>
       </div>

@@ -12,6 +12,9 @@ export interface PostAuthor {
 export type PostResponse = Omit<PostEntity, "tags" | "author"> & {
   tagList: string[];
   author: PostAuthor;
+  /** Whether the authenticated caller has favorited this post. Always false
+   * for anonymous requests. */
+  favorited: boolean;
 };
 
 export interface PostRO {

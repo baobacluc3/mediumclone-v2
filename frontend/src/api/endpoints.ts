@@ -56,6 +56,14 @@ export const articlesApi = {
     const qs = params.toString();
     return api.get<ArticlesResponse>(`/posts${qs ? `?${qs}` : ""}`);
   },
+  feed(query: Pick<ArticleQuery, "limit" | "offset"> = {}) {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value !== undefined) params.set(key, String(value));
+    }
+    const qs = params.toString();
+    return api.get<ArticlesResponse>(`/posts/feed${qs ? `?${qs}` : ""}`);
+  },
   get: (slug: string) => api.get<{ post: Article }>(`/posts/${slug}`),
   create: (post: {
     title: string;

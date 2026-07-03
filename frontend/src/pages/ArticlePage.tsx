@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import ReactMarkdown from "react-markdown";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { articlesApi } from "../api/endpoints";
 import type { Article } from "../api/types";
@@ -14,10 +15,8 @@ export function ArticlePage() {
   const navigate = useNavigate();
   const [article, setArticle] = useState<Article | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // The API doesn't report per-user favorite state, so track what the user
-  // did in this session; favorite/unfavorite are idempotent server-side.
-  const [favorited, setFavorited] = useState(false);
   const [busy, setBusy] = useState(false);
+  const favorited = article?.favorited ?? false;
 
   useEffect(() => {
     if (!slug) return;
@@ -59,7 +58,6 @@ export function ArticlePage() {
         ? await articlesApi.unfavorite(article.slug)
         : await articlesApi.favorite(article.slug);
       setArticle(post);
-      setFavorited(!favorited);
     } finally {
       setBusy(false);
     }
@@ -124,9 +122,7 @@ export function ArticlePage() {
       )}
 
       <div className="article-content">
-        {article.body.split(/\n{2,}/).map((paragraph, index) => (
-          <p key={index}>{paragraph}</p>
-        ))}
+        <ReactMarkdown>{article.body}</ReactMarkdown>
       </div>
 
       {article.tagList.length > 0 && (

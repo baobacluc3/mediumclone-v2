@@ -83,7 +83,7 @@ export function EditorPage() {
             <label htmlFor="body">Body</label>
             <textarea
               id="body"
-              placeholder="Write your article. Separate paragraphs with a blank line."
+              placeholder="Write your article in Markdown — headings, lists, code blocks, links all work."
               value={body}
               onChange={(event) => setBody(event.target.value)}
               rows={12}

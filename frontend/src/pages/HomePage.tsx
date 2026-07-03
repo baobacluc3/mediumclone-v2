@@ -12,6 +12,7 @@ export function HomePage() {
   const [articles, setArticles] = useState<Article[]>([]);
   const [total, setTotal] = useState(0);
   const [tags, setTags] = useState<string[]>([]);
+  const [feedTab, setFeedTab] = useState<"latest" | "following">("latest");
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [submittedSearch, setSubmittedSearch] = useState("");
@@ -28,13 +29,16 @@ export function HomePage() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    articlesApi
-      .list({
-        tag: activeTag ?? undefined,
-        search: submittedSearch || undefined,
-        limit: PAGE_SIZE,
-        offset,
-      })
+    const request =
+      feedTab === "following"
+        ? articlesApi.feed({ limit: PAGE_SIZE, offset })
+        : articlesApi.list({
+            tag: activeTag ?? undefined,
+            search: submittedSearch || undefined,
+            limit: PAGE_SIZE,
+            offset,
+          });
+    request
       .then((data) => {
         if (cancelled) return;
         setArticles(data.posts);
@@ -49,10 +53,17 @@ export function HomePage() {
     return () => {
       cancelled = true;
     };
-  }, [activeTag, submittedSearch, offset]);
+  }, [feedTab, activeTag, submittedSearch, offset]);
 
   function selectTag(tag: string | null) {
+    setFeedTab("latest");
     setActiveTag(tag);
+    setOffset(0);
+  }
+
+  function selectFeedTab(tab: "latest" | "following") {
+    setFeedTab(tab);
+    setActiveTag(null);
     setOffset(0);
   }
 
@@ -81,11 +92,21 @@ export function HomePage() {
           <div className="feed-toolbar">
             <div className="feed-tabs">
               <button
-                className={activeTag ? "tab" : "tab active"}
-                onClick={() => selectTag(null)}
+                className={
+                  feedTab === "latest" && !activeTag ? "tab active" : "tab"
+                }
+                onClick={() => selectFeedTab("latest")}
               >
                 Latest
               </button>
+              {user && (
+                <button
+                  className={feedTab === "following" ? "tab active" : "tab"}
+                  onClick={() => selectFeedTab("following")}
+                >
+                  Following
+                </button>
+              )}
               {activeTag && <span className="tab active"># {activeTag}</span>}
             </div>
             <form
@@ -109,9 +130,11 @@ export function HomePage() {
             articles={articles}
             loading={loading}
             emptyMessage={
-              submittedSearch || activeTag
-                ? "Nothing matches this filter. Try something else."
-                : "Be the first to publish something."
+              feedTab === "following"
+                ? "Follow some authors and their articles will show up here."
+                : submittedSearch || activeTag
+                  ? "Nothing matches this filter. Try something else."
+                  : "Be the first to publish something."
             }
           />
           <Pagination

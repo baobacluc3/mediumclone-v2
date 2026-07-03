@@ -16,6 +16,7 @@ export interface Article {
   body: string;
   tagList: string[];
   favoriteCount: number;
+  favorited: boolean;
   createdAt: string;
   updatedAt: string;
   author: Author;
