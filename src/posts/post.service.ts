@@ -311,11 +311,17 @@ export class PostService {
   }
 
   private toPostResponse(post: PostEntity): PostResponse {
-    const { tags, ...postData } = post;
+    const { tags, author, ...postData } = post;
 
     return {
       ...postData,
       tagList: (tags ?? []).map((tag) => tag.name),
+      author: {
+        id: author.id,
+        username: author.username,
+        bio: author.bio,
+        image: author.image,
+      },
     } as PostResponse;
   }
 

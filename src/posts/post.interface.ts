@@ -1,7 +1,17 @@
 import { PostEntity } from "./post.entity";
 
-export type PostResponse = Omit<PostEntity, "tags"> & {
+/** Public-facing subset of a post's author. Excludes email, roles, and any
+ * other account fields that shouldn't be visible to arbitrary readers. */
+export interface PostAuthor {
+  id: number;
+  username: string;
+  bio: string;
+  image: string;
+}
+
+export type PostResponse = Omit<PostEntity, "tags" | "author"> & {
   tagList: string[];
+  author: PostAuthor;
 };
 
 export interface PostRO {
