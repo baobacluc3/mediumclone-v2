@@ -135,7 +135,7 @@ export class UserService {
 
     //Same lockout protection as updateRoles: the system must always keep
     //at least one admin able to manage roles.
-    if (user.roles?.includes(UserRole.ADMIN)) {
+    if ((user.roles ?? []).some((role) => role.name === DefaultRole.Admin)) {
       await this.assertAnotherAdminExists(id);
     }
 
