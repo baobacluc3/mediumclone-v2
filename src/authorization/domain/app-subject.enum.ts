@@ -7,6 +7,7 @@
  */
 export enum AppSubject {
   Article = "Article",
+  Comment = "Comment",
   User = "User",
   Tag = "Tag",
   Role = "Role",

@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { PostModule } from "./posts/post.module";
+import { CommentModule } from "./comments/comment.module";
 import { getTypeOrmOptions } from "./database/typeorm.config";
 import { ProfileModule } from "./profile/profile.module";
 import { TagModule } from "./tag/tag.module";
@@ -18,6 +19,7 @@ import { AuthorizationModule } from "./authorization/authorization.module";
     AuthorizationModule,
     UserModule,
     PostModule,
+    CommentModule,
     ProfileModule,
     TagModule,
     AuthModule,

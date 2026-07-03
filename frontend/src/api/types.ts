@@ -26,6 +26,13 @@ export interface ArticlesResponse {
   postsCount: number;
 }
 
+export interface Comment {
+  id: number;
+  body: string;
+  createdAt: string;
+  author: Author;
+}
+
 export interface Profile {
   username: string;
   bio: string;

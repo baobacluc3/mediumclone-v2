@@ -4,6 +4,7 @@ import { articlesApi } from "../api/endpoints";
 import type { Article } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { Avatar } from "../components/Avatar";
+import { CommentSection } from "../components/CommentSection";
 import { HeartIcon, PenIcon } from "../components/Icons";
 import { fullDate, readingTime } from "../lib/format";
 
@@ -139,6 +140,8 @@ export function ArticlePage() {
           </ul>
         </div>
       )}
+
+      <CommentSection slug={article.slug} />
     </div>
   );
 }

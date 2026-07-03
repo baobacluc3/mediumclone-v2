@@ -1,62 +1,66 @@
-# Medium Clone API
+# Conduit — a Medium-style publishing platform
 
-NestJS REST API for a small Medium-style publishing app. It includes local email/password auth, JWT access tokens, refresh token rotation, posts, profiles, follows, favorites, and tags.
+A full-stack Medium clone: a NestJS + PostgreSQL REST API behind a React SPA,
+deployed and live.
 
-## Stack
+**🌐 Live demo:** [mediumclone-frontend.onrender.com](https://mediumclone-frontend.onrender.com)
+· **API health:** [/api/health](https://mediumclone-api.onrender.com/api/health)
 
-- NestJS and TypeScript
-- TypeORM with PostgreSQL
-- JWT auth with refresh token rotation
-- Database-backed RBAC with CASL policy-based authorization
+> Free-tier hosting: the API sleeps when idle, so the first request can take
+> ~50 seconds to cold-start.
 
-## Getting Started
+## Features
+
+- Email/password auth with **JWT access tokens + refresh token rotation**
+- Articles with tags, favorites, and **comments**
+- Author profiles and follows
+- Full-text search, tag filtering, pagination, and whitelisted sorting
+- **Database-backed RBAC** (roles → permissions) enforced through CASL
+  policies, with ownership rules ("edit your own article") as conditional
+  abilities
+- Rate limiting on write endpoints, request validation, standardized response
+  envelope
+- Migration-driven schema — TypeORM `synchronize` is off everywhere
+
+## Architecture
+
+```mermaid
+flowchart LR
+    Browser["React SPA<br/>(Vite + TypeScript)"] -->|"JSON / JWT Bearer"| API["NestJS API<br/>(REST, /api prefix)"]
+    API -->|TypeORM| DB[("PostgreSQL")]
+    subgraph Render
+        Browser
+        API
+    end
+    DB -.->|Neon| API
+```
+
+- **`src/`** — NestJS API: `auth` (tokens), `authorization` (RBAC + CASL),
+  `posts`, `comments`, `profile`, `tag`, `user`, `health`
+- **`frontend/`** — React SPA: fetch-based API client with automatic token
+  refresh, context-based auth state, plain CSS design system
+
+## Getting started
+
+Requires Node 20+ and a local PostgreSQL.
 
 ```bash
+# API
 npm install
-cp .env.example .env
-npm run start:dev
+cp .env.example .env        # fill in DB credentials
+npm run migration:run
+npm run start:dev           # http://localhost:3000/api
+
+# Frontend (second terminal)
+cd frontend
+npm install
+npm run dev                 # http://localhost:5173
 ```
 
-The API is served under `http://localhost:3000/api`.
-
-For local development, `TYPEORM_SYNC=true` lets TypeORM create and update tables automatically. Set `TYPEORM_SYNC=false` for production-like runs and use migrations instead.
-
-## Environment
-
-```env
-PORT=3000
-NODE_ENV=development
-
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=postgres
-DB_PASS=password
-DB_NAME=mediumclone
-TYPEORM_SYNC=true
-
-JWT_SECRET=change-me
-JWT_ACCESS_EXPIRES_IN=15m
-JWT_REFRESH_SECRET=change-me-too
-JWT_REFRESH_EXPIRES_IN=7d
-ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
-
-RBAC_BOOTSTRAP_ADMIN_EMAIL=
-
-THROTTLE_TTL_MS=60000
-THROTTLE_LIMIT=100
-```
-
-See [`.env.example`](.env.example) for the full set.
-
-## Scripts
-
-```bash
-npm run build
-npm run start:dev
-npm run lint
-npm run format
-npm test
-```
+The schema is migration-driven: entity changes require a generated migration
+(`npm run migration:generate -- src/database/migrations/<Name>`), which runs
+via `npm run migration:run` (locally) or automatically on boot in production
+(`MIGRATIONS_RUN=true`).
 
 ## Authorization (RBAC)
 
@@ -69,11 +73,10 @@ Authorization is database-backed and policy-based.
   with their expected permissions. New roles can be created at runtime — no
   redeploy required.
 - **CASL abilities.** On each request the caller's roles are resolved to a
-  deduplicated permission set and compiled into a
-  CASL ability. Role permissions are granted unconditionally; ownership rules
-  ("edit your own article", "delete your own account") are added as conditional
-  rules for every authenticated user, so ownership and privilege are evaluated
-  uniformly.
+  deduplicated permission set and compiled into a CASL ability. Role permissions
+  are granted unconditionally; ownership rules ("edit your own article", "delete
+  your own comment") are added as conditional rules for every authenticated
+  user, so ownership and privilege are evaluated uniformly.
 - **Global guards + decorators.** A global `JwtAuthGuard` authenticates every
   request except those marked `@Public()`; a global `PoliciesGuard` then enforces
   `@RequirePermissions({ action, subject })` and `@CheckPolicies(...)` metadata.
@@ -81,10 +84,11 @@ Authorization is database-backed and policy-based.
 - **First admin.** Set `RBAC_BOOTSTRAP_ADMIN_EMAIL` to an existing user's email
   to have the seeder grant them the `admin` role on boot.
 
-Defaults: `user` can create articles (and manage their own); `moderator` adds
-tag management; `admin` holds every permission, including role administration.
+Defaults: `user` authors their own content and comments; `moderator` adds tag
+curation and comment moderation; `admin` holds every permission, including role
+administration.
 
-## Main Routes
+## API routes
 
 | Method | Route | Notes |
 | --- | --- | --- |
@@ -95,13 +99,16 @@ tag management; `admin` holds every permission, including role administration.
 | `GET` | `/user` | Read the current user |
 | `PUT` | `/user` | Update the current user |
 | `GET` | `/user/permissions` | Read the caller's effective roles and abilities |
-| `GET` | `/posts` | List posts |
+| `GET` | `/posts` | List posts (filter by tag/author/favorited, search, sort, paginate) |
 | `POST` | `/posts` | Create a post |
 | `GET` | `/posts/:slug` | Read a post |
-| `PUT` | `/posts/:slug` | Update a post |
-| `DELETE` | `/posts/:slug` | Delete a post |
+| `PUT` | `/posts/:slug` | Update a post (author or `update:Article`) |
+| `DELETE` | `/posts/:slug` | Delete a post (author or `delete:Article`) |
 | `POST` | `/posts/:slug/favorite` | Favorite a post |
 | `DELETE` | `/posts/:slug/favorite` | Remove a favorite |
+| `GET` | `/posts/:slug/comments` | List a post's comments |
+| `POST` | `/posts/:slug/comments` | Comment on a post |
+| `DELETE` | `/posts/:slug/comments/:id` | Delete a comment (author or `delete:Comment`) |
 | `GET` | `/profiles/:username` | Read an author profile |
 | `POST` | `/profiles/:username/follow` | Follow an author |
 | `DELETE` | `/profiles/:username/follow` | Unfollow an author |
@@ -117,3 +124,11 @@ tag management; `admin` holds every permission, including role administration.
 | `PATCH` | `/admin/roles/:id` | Update role metadata (requires `manage:Role`) |
 | `PUT` | `/admin/roles/:id/permissions` | Replace a role's permissions (requires `manage:Role`) |
 | `DELETE` | `/admin/roles/:id` | Delete a non-system role (requires `manage:Role`) |
+
+All routes are served under the `/api` prefix.
+
+## Deployment
+
+Live on Render (API web service + static frontend) with PostgreSQL on Neon.
+See [DEPLOYMENT.md](DEPLOYMENT.md) for the full setup, including the
+[render.yaml](render.yaml) blueprint.

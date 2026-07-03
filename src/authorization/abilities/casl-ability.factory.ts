@@ -31,9 +31,10 @@ export class CaslAbilityFactory {
     }
 
     if (user?.id) {
-      // Authors may always manage their own articles...
+      // Authors may always manage their own articles and comments...
       can(Action.Update, AppSubject.Article, { authorId: user.id });
       can(Action.Delete, AppSubject.Article, { authorId: user.id });
+      can(Action.Delete, AppSubject.Comment, { authorId: user.id });
       // ...and every user may manage their own account.
       can(Action.Read, AppSubject.User, { id: user.id });
       can(Action.Update, AppSubject.User, { id: user.id });

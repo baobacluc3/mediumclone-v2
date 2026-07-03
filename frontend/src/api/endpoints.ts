@@ -4,6 +4,7 @@ import type {
   ArticleQuery,
   ArticlesResponse,
   AuthTokens,
+  Comment,
   CurrentUser,
   Profile,
 } from "./types";
@@ -76,6 +77,17 @@ export const articlesApi = {
     api.post<{ post: Article }>(`/posts/${slug}/favorite`),
   unfavorite: (slug: string) =>
     api.delete<{ post: Article }>(`/posts/${slug}/favorite`),
+};
+
+export const commentsApi = {
+  list: (slug: string) =>
+    api.get<{ comments: Comment[] }>(`/posts/${slug}/comments`),
+  create: (slug: string, body: string) =>
+    api.post<{ comment: Comment }>(`/posts/${slug}/comments`, {
+      comment: { body },
+    }),
+  remove: (slug: string, id: number) =>
+    api.delete<void>(`/posts/${slug}/comments/${id}`),
 };
 
 export const profilesApi = {

@@ -1,5 +1,6 @@
 import { MongoAbility } from "@casl/ability";
 
+import { CommentEntity } from "@/comments/comment.entity";
 import { PostEntity } from "@/posts/post.entity";
 import { TagEntity } from "@/tag/tag.entity";
 import { UserEntity } from "@/user/user.entity";
@@ -38,6 +39,7 @@ export function detectSubjectType(value: unknown): AppSubject {
   }
 
   if (value instanceof PostEntity) return AppSubject.Article;
+  if (value instanceof CommentEntity) return AppSubject.Comment;
   if (value instanceof UserEntity) return AppSubject.User;
   if (value instanceof TagEntity) return AppSubject.Tag;
   if (value instanceof RoleEntity) return AppSubject.Role;

@@ -47,6 +47,16 @@ export const PERMISSION_CATALOG: PermissionDefinition[] = [
     description: "Delete any article, including those authored by others",
   },
   {
+    action: Action.Create,
+    subject: AppSubject.Comment,
+    description: "Comment on articles",
+  },
+  {
+    action: Action.Delete,
+    subject: AppSubject.Comment,
+    description: "Delete any comment, including those authored by others",
+  },
+  {
     action: Action.Manage,
     subject: AppSubject.Tag,
     description: "Create, update and delete tags",
@@ -83,13 +93,19 @@ export const ROLE_CATALOG: RoleDefinition[] = [
   {
     name: DefaultRole.User,
     description: "Standard member who can author and manage their own content",
-    permissions: [{ action: Action.Create, subject: AppSubject.Article }],
+    permissions: [
+      { action: Action.Create, subject: AppSubject.Article },
+      { action: Action.Create, subject: AppSubject.Comment },
+    ],
   },
   {
     name: DefaultRole.Moderator,
-    description: "Trusted member who can additionally curate tags",
+    description:
+      "Trusted member who can additionally curate tags and moderate comments",
     permissions: [
       { action: Action.Create, subject: AppSubject.Article },
+      { action: Action.Create, subject: AppSubject.Comment },
+      { action: Action.Delete, subject: AppSubject.Comment },
       { action: Action.Manage, subject: AppSubject.Tag },
     ],
   },
@@ -100,6 +116,8 @@ export const ROLE_CATALOG: RoleDefinition[] = [
       { action: Action.Create, subject: AppSubject.Article },
       { action: Action.Update, subject: AppSubject.Article },
       { action: Action.Delete, subject: AppSubject.Article },
+      { action: Action.Create, subject: AppSubject.Comment },
+      { action: Action.Delete, subject: AppSubject.Comment },
       { action: Action.Manage, subject: AppSubject.Tag },
       { action: Action.Delete, subject: AppSubject.User },
       { action: Action.Manage, subject: AppSubject.Role },
