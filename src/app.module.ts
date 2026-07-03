@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { TypeOrmModule } from "@nestjs/typeorm";
+import { CacheModule } from "./cache/cache.module";
 import { PostModule } from "./posts/post.module";
 import { CommentModule } from "./comments/comment.module";
 import { getTypeOrmOptions } from "./database/typeorm.config";
@@ -14,6 +15,7 @@ import { AuthorizationModule } from "./authorization/authorization.module";
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    CacheModule,
     TypeOrmModule.forRoot(getTypeOrmOptions()),
     HealthModule,
     AuthorizationModule,

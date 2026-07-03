@@ -20,6 +20,11 @@ deployed and live.
   abilities
 - Rate limiting on write endpoints, request validation, standardized response
   envelope
+- **Redis caching with graceful degradation** — the tag listing is cached
+  (short TTL + invalidation on writes) and rate-limit counters live in Redis
+  so they survive restarts and shared across instances; if Redis is down or
+  unconfigured, the app transparently falls back to Postgres reads and
+  in-memory counters
 - Migration-driven schema — TypeORM `synchronize` is off everywhere
 
 ## Architecture

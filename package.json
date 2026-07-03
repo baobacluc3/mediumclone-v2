@@ -18,7 +18,8 @@
     "migration:create": "ts-node ./node_modules/typeorm/cli.js migration:create",
     "migration:run": "npm run typeorm -- migration:run",
     "migration:revert": "npm run typeorm -- migration:revert",
-    "migration:show": "npm run typeorm -- migration:show"
+    "migration:show": "npm run typeorm -- migration:show",
+    "seed:demo": "ts-node -r tsconfig-paths/register src/database/seed-demo.ts"
   },
   "dependencies": {
     "@casl/ability": "^7.0.0",
@@ -33,6 +34,7 @@
     "bcrypt": "^5.1.1",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.4",
+    "ioredis": "^5.11.1",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "pg": "^8.16.3",

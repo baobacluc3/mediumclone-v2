@@ -1,5 +1,12 @@
-# Render blueprint: NestJS API (web service) + React app (static site).
+# Render blueprint: NestJS API (web service) + React app (static site)
+# + Key Value (Redis) for caching and shared rate-limit counters.
 # The database lives on Neon and is wired in via DATABASE_URL.
+keyValues:
+  - name: mediumclone-redis
+    plan: free
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: [] # internal connections only
+
 services:
   - type: web
     name: mediumclone-api
@@ -29,6 +36,11 @@ services:
         value: 7d
       - key: ALLOWED_ORIGINS
         value: https://mediumclone-frontend.onrender.com
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: mediumclone-redis
+          property: connectionString
 
   - type: web
     name: mediumclone-frontend
