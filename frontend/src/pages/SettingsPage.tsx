@@ -11,18 +11,15 @@ export function SettingsPage() {
   const [bio, setBio] = useState(user?.bio ?? "");
   const [email, setEmail] = useState(user?.email ?? "");
   const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setError(null);
-    setSaved(false);
     setBusy(true);
     try {
       await userApi.update({ image, username, bio, email });
       await refreshUser();
-      setSaved(true);
       navigate(`/profile/${username}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -32,39 +29,55 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="container auth-page">
-      <h1>Your Settings</h1>
-      {error && <p className="error">{error}</p>}
-      {saved && <p className="hint">Settings saved.</p>}
-      <form onSubmit={handleSubmit}>
-        <input
-          placeholder="URL of profile picture"
-          value={image}
-          onChange={(event) => setImage(event.target.value)}
-        />
-        <input
-          placeholder="Username"
-          value={username}
-          onChange={(event) => setUsername(event.target.value)}
-          required
-        />
-        <textarea
-          placeholder="Short bio about you"
-          value={bio}
-          onChange={(event) => setBio(event.target.value)}
-          rows={5}
-        />
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          required
-        />
-        <button type="submit" disabled={busy}>
-          {busy ? "Saving…" : "Update Settings"}
-        </button>
-      </form>
+    <div className="form-page">
+      <h1>Your settings</h1>
+      <p className="form-sub">Update how you appear on conduit.</p>
+      <div className="form-card">
+        <form onSubmit={handleSubmit}>
+          {error && <p className="error-banner">{error}</p>}
+          <div className="field">
+            <label htmlFor="image">Profile picture URL</label>
+            <input
+              id="image"
+              placeholder="https://…"
+              value={image}
+              onChange={(event) => setImage(event.target.value)}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="username">Username</label>
+            <input
+              id="username"
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+              required
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="bio">Bio</label>
+            <textarea
+              id="bio"
+              placeholder="A short bio about you"
+              value={bio}
+              onChange={(event) => setBio(event.target.value)}
+              rows={4}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="email">Email</label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              required
+            />
+          </div>
+          <button type="submit" className="btn btn-primary" disabled={busy}>
+            {busy ? "Saving…" : "Save settings"}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

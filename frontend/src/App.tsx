@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./auth/AuthContext";
+import { Footer } from "./components/Footer";
 import { Header } from "./components/Header";
 import { ArticlePage } from "./pages/ArticlePage";
 import { LoginPage, RegisterPage } from "./pages/AuthPages";
@@ -52,6 +53,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
+      <Footer />
     </>
   );
 }

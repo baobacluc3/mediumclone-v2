@@ -3,6 +3,9 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { articlesApi } from "../api/endpoints";
 import type { Article } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
+import { Avatar } from "../components/Avatar";
+import { HeartIcon, PenIcon } from "../components/Icons";
+import { fullDate, readingTime } from "../lib/format";
 
 export function ArticlePage() {
   const { slug } = useParams<{ slug: string }>();
@@ -23,8 +26,23 @@ export function ArticlePage() {
       .catch((err: Error) => setError(err.message));
   }, [slug]);
 
-  if (error) return <p className="container error">{error}</p>;
-  if (!article) return <p className="container hint">Loading…</p>;
+  if (error)
+    return (
+      <div className="article-page">
+        <p className="error-banner">{error}</p>
+      </div>
+    );
+
+  if (!article)
+    return (
+      <div className="article-page">
+        <div className="skeleton" style={{ width: "80%", height: 38, marginBottom: 24 }} />
+        <div className="skeleton" style={{ width: "40%", height: 18, marginBottom: 40 }} />
+        <div className="skeleton" style={{ width: "100%", height: 16, marginBottom: 10 }} />
+        <div className="skeleton" style={{ width: "95%", height: 16, marginBottom: 10 }} />
+        <div className="skeleton" style={{ width: "88%", height: 16 }} />
+      </div>
+    );
 
   const isAuthor = user?.username === article.author.username;
 
@@ -53,59 +71,74 @@ export function ArticlePage() {
   }
 
   return (
-    <div>
-      <div className="article-banner">
-        <div className="container">
-          <h1>{article.title}</h1>
-          <div className="article-meta">
-            <Link to={`/profile/${article.author.username}`} className="author">
-              <span>
-                {article.author.username}
-                <small>
-                  {new Date(article.createdAt).toLocaleDateString()}
-                </small>
-              </span>
-            </Link>
-            <button
-              className="button button-outline"
-              onClick={toggleFavorite}
-              disabled={busy}
-            >
-              {favorited ? "♥ Unfavorite" : "♡ Favorite"} (
-              {article.favoriteCount})
-            </button>
-            {isAuthor && (
-              <>
-                <Link
-                  className="button button-outline"
-                  to={`/editor/${article.slug}`}
-                >
-                  Edit
-                </Link>
-                <button className="button button-danger" onClick={handleDelete}>
-                  Delete
-                </button>
-              </>
-            )}
-          </div>
+    <div className="article-page">
+      <h1>{article.title}</h1>
+
+      <div className="article-byline">
+        <Link to={`/profile/${article.author.username}`}>
+          <Avatar
+            username={article.author.username}
+            image={article.author.image}
+          />
+        </Link>
+        <div className="byline-info">
+          <Link
+            to={`/profile/${article.author.username}`}
+            className="author-name"
+          >
+            {article.author.username}
+          </Link>
+          <span className="byline-sub">
+            {fullDate(article.createdAt)} · {readingTime(article.body)}
+          </span>
+        </div>
+        <div className="byline-actions">
+          <button
+            className={favorited ? "btn btn-primary btn-sm" : "btn btn-ghost btn-sm"}
+            onClick={toggleFavorite}
+            disabled={busy}
+          >
+            <HeartIcon filled={favorited} />
+            {article.favoriteCount}
+          </button>
+          {isAuthor && (
+            <>
+              <Link
+                className="btn btn-ghost btn-sm"
+                to={`/editor/${article.slug}`}
+              >
+                <PenIcon />
+                Edit
+              </Link>
+              <button className="btn btn-danger btn-sm" onClick={handleDelete}>
+                Delete
+              </button>
+            </>
+          )}
         </div>
       </div>
 
-      <div className="container article-body">
-        <p className="article-description">{article.description}</p>
+      {article.description && (
+        <p className="article-lede">{article.description}</p>
+      )}
+
+      <div className="article-content">
         {article.body.split(/\n{2,}/).map((paragraph, index) => (
           <p key={index}>{paragraph}</p>
         ))}
-        {article.tagList.length > 0 && (
+      </div>
+
+      {article.tagList.length > 0 && (
+        <div className="article-tags">
           <ul className="tag-list">
             {article.tagList.map((tag) => (
-              <li key={tag} className="tag tag-outline">
+              <li key={tag} className="tag tag-static">
                 {tag}
               </li>
             ))}
           </ul>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

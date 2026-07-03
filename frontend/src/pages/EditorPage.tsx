@@ -51,40 +51,59 @@ export function EditorPage() {
   }
 
   return (
-    <div className="container editor-page">
-      <h1>{slug ? "Edit Article" : "New Article"}</h1>
-      {error && <p className="error">{error}</p>}
-      <form onSubmit={handleSubmit}>
-        <input
-          placeholder="Article title"
-          value={title}
-          onChange={(event) => setTitle(event.target.value)}
-          maxLength={255}
-          required
-        />
-        <input
-          placeholder="What's this article about?"
-          value={description}
-          onChange={(event) => setDescription(event.target.value)}
-          maxLength={500}
-          required
-        />
-        <textarea
-          placeholder="Write your article (plain text)"
-          value={body}
-          onChange={(event) => setBody(event.target.value)}
-          rows={10}
-          required
-        />
-        <input
-          placeholder="Tags (comma separated)"
-          value={tags}
-          onChange={(event) => setTags(event.target.value)}
-        />
-        <button type="submit" disabled={busy}>
-          {busy ? "Publishing…" : "Publish Article"}
-        </button>
-      </form>
+    <div className="form-page wide">
+      <h1>{slug ? "Edit article" : "New article"}</h1>
+      <p className="form-sub">Share something worth reading.</p>
+      <div className="form-card">
+        <form onSubmit={handleSubmit}>
+          {error && <p className="error-banner">{error}</p>}
+          <div className="field">
+            <label htmlFor="title">Title</label>
+            <input
+              id="title"
+              placeholder="How I built…"
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              maxLength={255}
+              required
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="description">Short description</label>
+            <input
+              id="description"
+              placeholder="What's this article about?"
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              maxLength={500}
+              required
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="body">Body</label>
+            <textarea
+              id="body"
+              placeholder="Write your article. Separate paragraphs with a blank line."
+              value={body}
+              onChange={(event) => setBody(event.target.value)}
+              rows={12}
+              required
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="tags">Tags</label>
+            <input
+              id="tags"
+              placeholder="react, typescript (comma separated)"
+              value={tags}
+              onChange={(event) => setTags(event.target.value)}
+            />
+          </div>
+          <button type="submit" className="btn btn-primary" disabled={busy}>
+            {busy ? "Publishing…" : "Publish article"}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { articlesApi, profilesApi } from "../api/endpoints";
 import type { Article, Profile } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { ArticleList, Pagination } from "../components/ArticleList";
+import { Avatar } from "../components/Avatar";
 
 const PAGE_SIZE = 10;
 
@@ -23,6 +24,8 @@ export function ProfilePage() {
     if (!username) return;
     setProfile(null);
     setError(null);
+    setTab("authored");
+    setOffset(0);
     profilesApi
       .get(username)
       .then(({ profile }) => setProfile(profile))
@@ -64,38 +67,63 @@ export function ProfilePage() {
     setProfile(updated);
   }
 
-  if (error) return <p className="container error">{error}</p>;
-  if (!profile) return <p className="container hint">Loading…</p>;
+  if (error)
+    return (
+      <div className="container" style={{ padding: "2.5rem 1.25rem" }}>
+        <p className="error-banner">{error}</p>
+      </div>
+    );
+
+  if (!profile)
+    return (
+      <div className="profile-hero">
+        <div className="container">
+          <span
+            className="skeleton avatar avatar-xl"
+            style={{ display: "inline-block" }}
+          />
+          <div
+            className="skeleton"
+            style={{ width: 160, height: 24, margin: "1rem auto 0" }}
+          />
+        </div>
+      </div>
+    );
 
   const isSelf = user?.username === profile.username;
 
   return (
     <div>
-      <div className="profile-banner">
+      <div className="profile-hero">
         <div className="container">
-          {profile.image && (
-            <img src={profile.image} alt="" className="avatar avatar-large" />
-          )}
+          <Avatar username={profile.username} image={profile.image} size="xl" />
           <h2>{profile.username}</h2>
-          {profile.bio && <p>{profile.bio}</p>}
+          {profile.bio && <p className="bio">{profile.bio}</p>}
           {isSelf ? (
             <button
-              className="button button-outline"
+              className="btn btn-ghost btn-sm"
               onClick={() => navigate("/settings")}
             >
-              Edit Profile Settings
+              Edit profile
             </button>
           ) : (
-            <button className="button button-outline" onClick={toggleFollow}>
+            <button
+              className={
+                profile.following
+                  ? "btn btn-ghost btn-sm"
+                  : "btn btn-primary btn-sm"
+              }
+              onClick={toggleFollow}
+            >
               {profile.following ? "Unfollow" : "Follow"} {profile.username}
             </button>
           )}
         </div>
       </div>
 
-      <div className="container page">
-        <div className="main-column">
-          <div className="feed-tabs">
+      <div className="container layout" style={{ gridTemplateColumns: "1fr" }}>
+        <div style={{ maxWidth: 720, margin: "0 auto", width: "100%" }}>
+          <div className="feed-tabs" style={{ marginBottom: "1.25rem" }}>
             <button
               className={tab === "authored" ? "tab active" : "tab"}
               onClick={() => {
@@ -115,7 +143,15 @@ export function ProfilePage() {
               Favorited
             </button>
           </div>
-          <ArticleList articles={articles} loading={loading} />
+          <ArticleList
+            articles={articles}
+            loading={loading}
+            emptyMessage={
+              tab === "authored"
+                ? `${profile.username} hasn't published anything yet.`
+                : `${profile.username} hasn't favorited anything yet.`
+            }
+          />
           <Pagination
             total={total}
             limit={PAGE_SIZE}
