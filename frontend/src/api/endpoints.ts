@@ -5,6 +5,7 @@ import type {
   ArticlesResponse,
   AuthTokens,
   Comment,
+  CommentsResponse,
   CurrentUser,
   Profile,
 } from "./types";
@@ -19,7 +20,10 @@ export const authApi = {
       email,
       password,
     });
-    setTokens({ accessToken: data.accessToken, refreshToken: data.refreshToken });
+    setTokens({
+      accessToken: data.accessToken,
+      refreshToken: data.refreshToken,
+    });
   },
 
   async register(
@@ -32,7 +36,10 @@ export const authApi = {
       email,
       password,
     });
-    setTokens({ accessToken: data.accessToken, refreshToken: data.refreshToken });
+    setTokens({
+      accessToken: data.accessToken,
+      refreshToken: data.refreshToken,
+    });
   },
 
   async logout(): Promise<void> {
@@ -56,7 +63,9 @@ export const articlesApi = {
     const qs = params.toString();
     return api.get<ArticlesResponse>(`/posts${qs ? `?${qs}` : ""}`);
   },
-  feed(query: Pick<ArticleQuery, "limit" | "offset"> = {}) {
+  feed(
+    query: Pick<ArticleQuery, "limit" | "offset" | "sortBy" | "sortDir"> = {},
+  ) {
     const params = new URLSearchParams();
     for (const [key, value] of Object.entries(query)) {
       if (value !== undefined) params.set(key, String(value));
@@ -88,8 +97,16 @@ export const articlesApi = {
 };
 
 export const commentsApi = {
-  list: (slug: string) =>
-    api.get<{ comments: Comment[] }>(`/posts/${slug}/comments`),
+  list: (slug: string, query: { limit?: number; offset?: number } = {}) => {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (value !== undefined) params.set(key, String(value));
+    }
+    const qs = params.toString();
+    return api.get<CommentsResponse>(
+      `/posts/${slug}/comments${qs ? `?${qs}` : ""}`,
+    );
+  },
   create: (slug: string, body: string) =>
     api.post<{ comment: Comment }>(`/posts/${slug}/comments`, {
       comment: { body },

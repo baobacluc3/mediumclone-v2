@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Param,
   Post,
+  Query,
   UseGuards,
 } from "@nestjs/common";
 
@@ -23,7 +24,7 @@ import { RequiredBodyPipe } from "@/common/pipes/required-body.pipe";
 import { SlugValidationPipe } from "../common/pipes/slug-validation.pipe";
 import { CommentService } from "./comment.service";
 import { CommentRO, CommentsRO } from "./comment.interface";
-import { CreateCommentDto } from "./dto";
+import { CreateCommentDto, FindCommentsQueryDto } from "./dto";
 
 @Controller("posts/:slug/comments")
 export class CommentController {
@@ -33,8 +34,9 @@ export class CommentController {
   @Public()
   findByPost(
     @Param("slug", SlugValidationPipe) slug: string,
+    @Query() query: FindCommentsQueryDto,
   ): Promise<CommentsRO> {
-    return this.commentService.findByPost(slug);
+    return this.commentService.findByPost(slug, query);
   }
 
   @Post()

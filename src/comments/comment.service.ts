@@ -12,7 +12,7 @@ import { Action } from "@/authorization/domain/action.enum";
 import { PostEntity } from "../posts/post.entity";
 import { CommentEntity } from "./comment.entity";
 import { CommentResponse, CommentRO, CommentsRO } from "./comment.interface";
-import { CreateCommentDto } from "./dto";
+import { CreateCommentDto, FindCommentsQueryDto } from "./dto";
 
 @Injectable()
 export class CommentService {
@@ -24,16 +24,28 @@ export class CommentService {
     private readonly abilityFactory: CaslAbilityFactory,
   ) {}
 
-  async findByPost(slug: string): Promise<CommentsRO> {
+  async findByPost(
+    slug: string,
+    query: FindCommentsQueryDto,
+  ): Promise<CommentsRO> {
     const post = await this.findPostOrFail(slug);
 
-    const comments = await this.commentRepository.find({
-      where: { postId: post.id },
-      relations: ["author"],
-      order: { createdAt: "DESC" },
-    });
+    // `id` breaks ties between comments created in the same millisecond so
+    // rows can't reshuffle between pages.
+    const [comments, commentsCount] = await this.commentRepository.findAndCount(
+      {
+        where: { postId: post.id },
+        relations: ["author"],
+        order: { createdAt: "DESC", id: "DESC" },
+        skip: query.offset,
+        take: query.limit,
+      },
+    );
 
-    return { comments: comments.map((comment) => this.toResponse(comment)) };
+    return {
+      comments: comments.map((comment) => this.toResponse(comment)),
+      commentsCount,
+    };
   }
 
   async create(

@@ -14,4 +14,5 @@ export interface CommentRO {
 
 export interface CommentsRO {
   comments: CommentResponse[];
+  commentsCount: number;
 }

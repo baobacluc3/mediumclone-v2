@@ -6,19 +6,49 @@ import { useAuth } from "../auth/AuthContext";
 import { timeAgo } from "../lib/format";
 import { Avatar } from "./Avatar";
 
+const PAGE_SIZE = 10;
+
 export function CommentSection({ slug }: { slug: string }) {
   const { user } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
+  const [total, setTotal] = useState(0);
   const [body, setBody] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
     commentsApi
-      .list(slug)
-      .then(({ comments }) => setComments(comments))
-      .catch(() => setComments([]));
+      .list(slug, { limit: PAGE_SIZE })
+      .then(({ comments, commentsCount }) => {
+        setComments(comments);
+        setTotal(commentsCount);
+      })
+      .catch(() => {
+        setComments([]);
+        setTotal(0);
+      });
   }, [slug]);
+
+  async function loadMore() {
+    if (loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const { comments: page, commentsCount } = await commentsApi.list(slug, {
+        limit: PAGE_SIZE,
+        offset: comments.length,
+      });
+      // Dedupe on id in case a comment was posted between page loads and
+      // shifted the offset window.
+      setComments((current) => {
+        const seen = new Set(current.map((comment) => comment.id));
+        return [...current, ...page.filter((comment) => !seen.has(comment.id))];
+      });
+      setTotal(commentsCount);
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -28,6 +58,7 @@ export function CommentSection({ slug }: { slug: string }) {
     try {
       const { comment } = await commentsApi.create(slug, body.trim());
       setComments((current) => [comment, ...current]);
+      setTotal((count) => count + 1);
       setBody("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -39,12 +70,13 @@ export function CommentSection({ slug }: { slug: string }) {
   async function handleDelete(id: number) {
     await commentsApi.remove(slug, id);
     setComments((current) => current.filter((comment) => comment.id !== id));
+    setTotal((count) => Math.max(0, count - 1));
   }
 
   return (
     <section className="comments">
       <h3>
-        Comments{comments.length > 0 && <span> ({comments.length})</span>}
+        Comments{total > 0 && <span> ({total})</span>}
       </h3>
 
       {user ? (
@@ -107,6 +139,18 @@ export function CommentSection({ slug }: { slug: string }) {
             </li>
           ))}
         </ul>
+      )}
+
+      {comments.length < total && (
+        <button
+          className="btn btn-ghost btn-sm"
+          onClick={loadMore}
+          disabled={loadingMore}
+        >
+          {loadingMore
+            ? "Loading…"
+            : `Show more comments (${total - comments.length})`}
+        </button>
       )}
     </section>
   );

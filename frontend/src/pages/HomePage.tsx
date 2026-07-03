@@ -1,11 +1,24 @@
 import { useEffect, useState } from "react";
 import { articlesApi, tagsApi } from "../api/endpoints";
-import type { Article } from "../api/types";
+import type { Article, ArticleSortField } from "../api/types";
 import { useAuth } from "../auth/AuthContext";
 import { ArticleList, Pagination } from "../components/ArticleList";
 import { SearchIcon } from "../components/Icons";
 
 const PAGE_SIZE = 10;
+
+/** Feed sort presets, mapped to the API's whitelisted sortBy/sortDir params. */
+const SORT_OPTIONS = {
+  newest: { label: "Newest", sortBy: "createdAt", sortDir: "desc" },
+  oldest: { label: "Oldest", sortBy: "createdAt", sortDir: "asc" },
+  popular: { label: "Most favorited", sortBy: "favoriteCount", sortDir: "desc" },
+  title: { label: "Title A–Z", sortBy: "title", sortDir: "asc" },
+} as const satisfies Record<
+  string,
+  { label: string; sortBy: ArticleSortField; sortDir: "asc" | "desc" }
+>;
+
+type SortKey = keyof typeof SORT_OPTIONS;
 
 export function HomePage() {
   const { user } = useAuth();
@@ -16,6 +29,7 @@ export function HomePage() {
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [submittedSearch, setSubmittedSearch] = useState("");
+  const [sort, setSort] = useState<SortKey>("newest");
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(true);
 
@@ -29,12 +43,15 @@ export function HomePage() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    const { sortBy, sortDir } = SORT_OPTIONS[sort];
     const request =
       feedTab === "following"
-        ? articlesApi.feed({ limit: PAGE_SIZE, offset })
+        ? articlesApi.feed({ sortBy, sortDir, limit: PAGE_SIZE, offset })
         : articlesApi.list({
             tag: activeTag ?? undefined,
             search: submittedSearch || undefined,
+            sortBy,
+            sortDir,
             limit: PAGE_SIZE,
             offset,
           });
@@ -53,7 +70,7 @@ export function HomePage() {
     return () => {
       cancelled = true;
     };
-  }, [feedTab, activeTag, submittedSearch, offset]);
+  }, [feedTab, activeTag, submittedSearch, sort, offset]);
 
   function selectTag(tag: string | null) {
     setFeedTab("latest");
@@ -109,21 +126,38 @@ export function HomePage() {
               )}
               {activeTag && <span className="tab active"># {activeTag}</span>}
             </div>
-            <form
-              className="search"
-              onSubmit={(event) => {
-                event.preventDefault();
-                setSubmittedSearch(search.trim());
-                setOffset(0);
-              }}
-            >
-              <SearchIcon />
-              <input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search articles…"
-              />
-            </form>
+            <div className="feed-controls">
+              <form
+                className="search"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  setSubmittedSearch(search.trim());
+                  setOffset(0);
+                }}
+              >
+                <SearchIcon />
+                <input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Search articles…"
+                />
+              </form>
+              <select
+                className="sort-select"
+                aria-label="Sort articles"
+                value={sort}
+                onChange={(event) => {
+                  setSort(event.target.value as SortKey);
+                  setOffset(0);
+                }}
+              >
+                {Object.entries(SORT_OPTIONS).map(([key, option]) => (
+                  <option key={key} value={key}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <ArticleList

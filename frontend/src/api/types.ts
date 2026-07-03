@@ -34,6 +34,11 @@ export interface Comment {
   author: Author;
 }
 
+export interface CommentsResponse {
+  comments: Comment[];
+  commentsCount: number;
+}
+
 export interface Profile {
   username: string;
   bio: string;
@@ -54,11 +59,19 @@ export interface AuthTokens {
   refreshToken: string;
 }
 
+export type ArticleSortField =
+  | "createdAt"
+  | "updatedAt"
+  | "favoriteCount"
+  | "title";
+
 export interface ArticleQuery {
   tag?: string;
   author?: string;
   favorited?: string;
   search?: string;
+  sortBy?: ArticleSortField;
+  sortDir?: "asc" | "desc";
   limit?: number;
   offset?: number;
 }
