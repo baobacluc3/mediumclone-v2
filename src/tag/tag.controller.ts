@@ -10,9 +10,10 @@ import {
   Put,
 } from "@nestjs/common";
 import { ParsePositiveIntPipe } from "../common/pipes/parse-positive-int.pipe";
-import { Permission } from "@/auth/permissions";
-import { Public } from "@/common/decorators/public.decorator";
-import { RequirePermissions } from "@/common/decorators/permissions.decorator";
+import { Public } from "@/authorization/decorators/public.decorator";
+import { RequirePermissions } from "@/authorization/decorators/require-permissions.decorator";
+import { Action } from "@/authorization/domain/action.enum";
+import { AppSubject } from "@/authorization/domain/app-subject.enum";
 import {
   CreateTagDto,
   TagsDto,
@@ -25,14 +26,14 @@ import { TagService } from "./tag.service";
 export class TagController {
   constructor(private readonly tagService: TagService) {}
 
-  @Public()
   @Get()
+  @Public()
   findAll(): Promise<TagsDto> {
     return this.tagService.findAll();
   }
 
-  @Public()
   @Get(":id")
+  @Public()
   findOne(
     @Param("id", ParsePositiveIntPipe) id: number,
   ): Promise<TagResponseDto> {
@@ -41,13 +42,13 @@ export class TagController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  @RequirePermissions(Permission.MANAGE_TAGS)
+  @RequirePermissions({ action: Action.Manage, subject: AppSubject.Tag })
   create(@Body() createTagDto: CreateTagDto): Promise<TagResponseDto> {
     return this.tagService.create(createTagDto);
   }
 
   @Put(":id")
-  @RequirePermissions(Permission.MANAGE_TAGS)
+  @RequirePermissions({ action: Action.Manage, subject: AppSubject.Tag })
   update(
     @Param("id", ParsePositiveIntPipe) id: number,
     @Body() updateTagDto: UpdateTagDto,
@@ -57,7 +58,7 @@ export class TagController {
 
   @Delete(":id")
   @HttpCode(HttpStatus.NO_CONTENT)
-  @RequirePermissions(Permission.MANAGE_TAGS)
+  @RequirePermissions({ action: Action.Manage, subject: AppSubject.Tag })
   remove(@Param("id", ParsePositiveIntPipe) id: number): Promise<void> {
     return this.tagService.remove(id);
   }

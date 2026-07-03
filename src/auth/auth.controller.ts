@@ -3,34 +3,34 @@ import { AuthService } from "./auth.service";
 import { LoginUserDto } from "./dto/login.dto";
 import { RegisterDto } from "./dto/register.dto";
 import { RefreshTokenDto } from "./dto/refresh-token.dto";
-import { Public } from "@/common/decorators/public.decorator";
 import { RateLimit } from "@/common/decorators/rate-limit.decorator";
 import { RateLimitGuard } from "@/common/guards/rate-limit.guard";
 import { User } from "@/common/decorators/user.decorator";
+import { Public } from "@/authorization/decorators/public.decorator";
 import { AuthenticatedUser } from "./auth.types";
 
 @Controller("auth")
 export class AuthController {
   constructor(private authService: AuthService) {}
 
-  @Public()
   @Post("register")
+  @Public()
   @UseGuards(RateLimitGuard)
   @RateLimit({ limit: 5, ttlMs: 60_000 })
   register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
   }
 
-  @Public()
   @Post("login")
+  @Public()
   @UseGuards(RateLimitGuard)
   @RateLimit({ limit: 10, ttlMs: 60_000 })
   login(@Body() loginDto: LoginUserDto) {
     return this.authService.login(loginDto);
   }
 
-  @Public()
   @Post("refresh")
+  @Public()
   @UseGuards(RateLimitGuard)
   @RateLimit({ limit: 20, ttlMs: 60_000 })
   refresh(@Body() dto: RefreshTokenDto) {

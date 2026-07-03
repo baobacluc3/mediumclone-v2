@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -12,8 +13,13 @@ import { FindOptionsWhere, Not, Repository } from "typeorm";
 
 import { UpdateUserDto } from "./dto";
 import { UserEntity } from "./user.entity";
-import { UserRole } from "@/auth/types/auth-user.type";
 import { AuthTokens, JwtUserPayload } from "@/auth/auth.types";
+import {
+  DEFAULT_ROLE_NAME,
+  DefaultRole,
+} from "@/authorization/domain/rbac.catalog";
+import { AuthorizationAuditService } from "@/authorization/services/authorization-audit.service";
+import { RolesService } from "@/authorization/services/roles.service";
 
 interface BuildUserResponseOptions {
   includeToken?: boolean;
@@ -26,6 +32,8 @@ export class UserService {
     private userRepository: Repository<UserEntity>,
     private jwtService: JwtService,
     private configService: ConfigService,
+    private readonly rolesService: RolesService,
+    private readonly audit: AuthorizationAuditService,
   ) {}
 
   async findById(id: number) {
@@ -55,6 +63,7 @@ export class UserService {
   findByEmailWithPassword(email: string) {
     return this.userRepository
       .createQueryBuilder("user")
+      .leftJoinAndSelect("user.roles", "roles")
       .addSelect("user.passwordHash")
       .where("user.email=:email", { email: email.toLowerCase().trim() })
       .getOne();
@@ -133,26 +142,44 @@ export class UserService {
     await this.userRepository.delete(id);
   }
 
-  async updateRoles(id: number, roles: UserRole[]) {
+  async updateRoles(id: number, roleNames: string[], actorId?: number) {
     const user = await this.findEntityById(id);
-    const nextRoles = this.normalizeRoles(roles);
+    const resolved = await this.rolesService.findByNames(roleNames);
 
-    if (
-      user.roles?.includes(UserRole.ADMIN) &&
-      !nextRoles.includes(UserRole.ADMIN)
-    ) {
+    const resolvedNames = new Set(resolved.map((role) => role.name));
+    const unknown = [
+      ...new Set((roleNames ?? []).map((name) => name.trim().toLowerCase())),
+    ].filter((name) => name && !resolvedNames.has(name));
+
+    if (unknown.length) {
+      throw new BadRequestException(`Unknown role(s): ${unknown.join(", ")}`);
+    }
+
+    const nextRoles = resolved.length
+      ? resolved
+      : await this.rolesService.findByNames([DEFAULT_ROLE_NAME]);
+
+    const wasAdmin = (user.roles ?? []).some(
+      (role) => role.name === DefaultRole.Admin,
+    );
+    const willBeAdmin = nextRoles.some(
+      (role) => role.name === DefaultRole.Admin,
+    );
+
+    if (wasAdmin && !willBeAdmin) {
       await this.assertAnotherAdminExists(user.id);
     }
 
     user.roles = nextRoles;
+    const saved = await this.userRepository.save(user);
 
-    return this.buildUserResponse(
-      await this.userRepository.save(user),
-      undefined,
-      {
-        includeToken: false,
-      },
-    );
+    this.audit.rolesAssigned({
+      actorId,
+      targetUserId: id,
+      roles: nextRoles.map((role) => role.name),
+    });
+
+    return this.buildUserResponse(saved, undefined, { includeToken: false });
   }
 
   async refreshTokens(refreshToken: string) {
@@ -180,6 +207,7 @@ export class UserService {
 
     const user = await this.userRepository
       .createQueryBuilder("user")
+      .leftJoinAndSelect("user.roles", "roles")
       .addSelect("user.refreshTokenHash")
       .where("user.id = :id", { id: userId })
       .getOne();
@@ -246,7 +274,7 @@ export class UserService {
         image: user.image || "",
         ...(includeToken ? { token: accessToken, accessToken } : {}),
         ...(tokens?.refreshToken ? { refreshToken: tokens.refreshToken } : {}),
-        roles: user.roles?.length ? user.roles : [UserRole.USER],
+        roles: this.roleNames(user),
       },
     };
   }
@@ -274,7 +302,7 @@ export class UserService {
       id: user.id,
       username: user.username,
       email: user.email,
-      roles: user.roles?.length ? user.roles : [UserRole.USER],
+      roles: this.roleNames(user),
       tokenType,
     };
   }
@@ -286,12 +314,10 @@ export class UserService {
     );
   }
 
-  private normalizeRoles(roles: UserRole[]): UserRole[] {
-    const normalizedRoles = [...new Set(roles ?? [])].filter((role) =>
-      Object.values(UserRole).includes(role),
-    );
-
-    return normalizedRoles.length ? normalizedRoles : [UserRole.USER];
+  private roleNames(user: UserEntity): string[] {
+    return user.roles?.length
+      ? user.roles.map((role) => role.name)
+      : [DEFAULT_ROLE_NAME];
   }
 
   private async assertAnotherAdminExists(
@@ -299,10 +325,10 @@ export class UserService {
   ): Promise<void> {
     const adminCount = await this.userRepository
       .createQueryBuilder("user")
-      .where("user.id != :currentAdminId", { currentAdminId })
-      .andWhere("user.roles LIKE :adminRole", {
-        adminRole: `%${UserRole.ADMIN}%`,
+      .innerJoin("user.roles", "role", "role.name = :admin", {
+        admin: DefaultRole.Admin,
       })
+      .where("user.id != :currentAdminId", { currentAdminId })
       .getCount();
 
     if (adminCount === 0) {

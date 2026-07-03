@@ -10,8 +10,9 @@ import { Repository } from "typeorm";
 import { RegisterDto } from "./dto/register.dto";
 import { LoginUserDto } from "./dto/login.dto";
 import * as bcrypt from "bcrypt";
-import { UserRole } from "./types/auth-user.type";
 import { AuthenticatedUser } from "./auth.types";
+import { DEFAULT_ROLE_NAME } from "@/authorization/domain/rbac.catalog";
+import { RolesService } from "@/authorization/services/roles.service";
 
 @Injectable()
 export class AuthService {
@@ -19,6 +20,7 @@ export class AuthService {
     private userService: UserService,
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
+    private readonly rolesService: RolesService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -38,12 +40,16 @@ export class AuthService {
     }
 
     const hashedPassword = await bcrypt.hash(dto.password, 10);
+    const defaultRoles = await this.rolesService.findByNames([
+      DEFAULT_ROLE_NAME,
+    ]);
 
     const user = await this.userRepository.save(
       this.userRepository.create({
         email,
         username,
         passwordHash: hashedPassword,
+        roles: defaultRoles,
       }),
     );
 
@@ -53,7 +59,7 @@ export class AuthService {
       user: {
         id: user.id,
         email: user.email,
-        roles: user.roles?.length ? user.roles : [UserRole.USER],
+        roles: this.roleNames(user),
         createdAt: user.createdAt,
       },
       ...tokens,
@@ -78,7 +84,7 @@ export class AuthService {
       user: {
         id: user.id,
         email: user.email,
-        roles: user.roles?.length ? user.roles : [UserRole.USER],
+        roles: this.roleNames(user),
       },
       ...tokens,
     };
@@ -90,5 +96,11 @@ export class AuthService {
 
   logout(user: AuthenticatedUser) {
     return this.userService.logout(user.id);
+  }
+
+  private roleNames(user: UserEntity): string[] {
+    return user.roles?.length
+      ? user.roles.map((role) => role.name)
+      : [DEFAULT_ROLE_NAME];
   }
 }

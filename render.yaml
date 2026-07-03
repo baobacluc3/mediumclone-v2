@@ -1,0 +1,29 @@
+# Render blueprint for the NestJS API.
+# The database is expected on Neon (or any hosted Postgres) via DATABASE_URL.
+services:
+  - type: web
+    name: mediumclone-api
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: node dist/main
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false # paste the Neon connection string in the dashboard
+      - key: DB_SSL
+        value: "true"
+      - key: MIGRATIONS_RUN
+        value: "true" # apply pending migrations on boot
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: JWT_ACCESS_EXPIRES_IN
+        value: 15m
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 7d
+      - key: ALLOWED_ORIGINS
+        sync: false # set to the deployed frontend URL, e.g. https://<app>.vercel.app

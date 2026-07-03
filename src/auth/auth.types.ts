@@ -1,11 +1,9 @@
-import { UserRole } from "./types/auth-user.type";
-
 export interface JwtUserPayload {
   id?: number;
   sub?: number;
   username?: string;
   email: string;
-  roles?: UserRole[];
+  roles?: string[];
   tokenType?: "access" | "refresh";
 }
 
@@ -14,7 +12,7 @@ export interface AuthenticatedUser extends JwtUserPayload {
   username: string;
   bio: string;
   image: string;
-  roles: UserRole[];
+  roles: string[];
 }
 
 export interface AuthTokens {

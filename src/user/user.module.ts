@@ -3,12 +3,10 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 import { JwtModule } from "@nestjs/jwt";
 import { PassportModule } from "@nestjs/passport";
 import { TypeOrmModule } from "@nestjs/typeorm";
-import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { JwtStrategy } from "../auth/jwt.strategy";
 import { UserController } from "./user.controller";
 import { UserEntity } from "./user.entity";
 import { UserService } from "./user.service";
-import { AuthorizationModule } from "@/auth/authorization/authorization.module";
 
 @Module({
   imports: [
@@ -22,10 +20,9 @@ import { AuthorizationModule } from "@/auth/authorization/authorization.module";
         secret: configService.getOrThrow<string>("JWT_SECRET"),
       }),
     }),
-    AuthorizationModule,
   ],
-  providers: [UserService, JwtStrategy, JwtAuthGuard],
+  providers: [UserService, JwtStrategy],
   controllers: [UserController],
-  exports: [UserService, JwtAuthGuard],
+  exports: [UserService],
 })
 export class UserModule {}

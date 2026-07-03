@@ -1,10 +1,8 @@
-import { IsArray, IsEnum, ArrayNotEmpty } from "class-validator";
-
-import { UserRole } from "@/auth/types/auth-user.type";
+import { ArrayNotEmpty, IsArray, IsString } from "class-validator";
 
 export class UpdateUserRolesDto {
   @IsArray()
   @ArrayNotEmpty()
-  @IsEnum(UserRole, { each: true })
-  roles: UserRole[];
+  @IsString({ each: true })
+  roles: string[];
 }

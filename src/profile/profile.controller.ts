@@ -10,14 +10,14 @@ import {
 import { ProfileService } from "./profile.service";
 import { ProfileRO } from "./profile.interface";
 import { User } from "../common/decorators/user.decorator";
-import { Public } from "@/common/decorators/public.decorator";
+import { Public } from "@/authorization/decorators/public.decorator";
 
 @Controller("profiles")
 export class ProfileController {
   constructor(private readonly profileService: ProfileService) {}
 
-  @Public()
   @Get(":username")
+  @Public()
   async getProfile(
     @User("id") userId: number,
     @Param("username") username: string,

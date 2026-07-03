@@ -4,7 +4,7 @@ import { PassportStrategy } from "@nestjs/passport";
 import { ExtractJwt, Strategy } from "passport-jwt";
 import { AuthenticatedUser, JwtUserPayload } from "./auth.types";
 import { UserService } from "../user/user.service";
-import { UserRole } from "./types/auth-user.type";
+import { DEFAULT_ROLE_NAME } from "@/authorization/domain/rbac.catalog";
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
@@ -31,6 +31,9 @@ export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
       }
 
       const user = await this.userService.findEntityById(userId);
+      const roles = user.roles?.length
+        ? user.roles.map((role) => role.name)
+        : [DEFAULT_ROLE_NAME];
 
       return {
         id: user.id,
@@ -38,7 +41,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
         email: user.email,
         bio: user.bio ?? "",
         image: user.image ?? "",
-        roles: user.roles?.length ? user.roles : [UserRole.USER],
+        roles,
       };
     } catch {
       throw new UnauthorizedException("Invalid token.");

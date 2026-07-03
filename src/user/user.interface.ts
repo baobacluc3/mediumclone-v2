@@ -1,5 +1,3 @@
-import { UserRole } from "@/auth/types/auth-user.type";
-
 export interface UserData {
   username: string;
   email: string;
@@ -8,7 +6,7 @@ export interface UserData {
   refreshToken?: string;
   bio: string;
   image: string;
-  roles: UserRole[];
+  roles: string[];
 }
 
 export interface UserRO {

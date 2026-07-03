@@ -13,10 +13,6 @@ import {
   UpdateTagDto,
 } from "./dto/tag.dto";
 import { TagEntity } from "./tag.entity";
-import { RedisCacheService } from "../cache/redis-cache.service";
-
-const TAG_LIST_CACHE_TTL_SECONDS = 300;
-const TAG_DETAIL_CACHE_TTL_SECONDS = 300;
 
 @Injectable()
 export class TagService {
@@ -25,36 +21,23 @@ export class TagService {
   constructor(
     @InjectRepository(TagEntity)
     private readonly tagRepository: Repository<TagEntity>,
-    private readonly cacheService: RedisCacheService,
   ) {}
 
   async findAll(): Promise<TagsDto> {
-    return this.cacheService.remember(
-      this.buildTagListCacheKey(),
-      TAG_LIST_CACHE_TTL_SECONDS,
-      async () => {
-        const [data, total] = await this.tagRepository.findAndCount({
-          order: { createdAt: "DESC" },
-        });
+    const [data, total] = await this.tagRepository.findAndCount({
+      order: { createdAt: "DESC" },
+    });
 
-        this.logger.log(`Found ${total} tags`);
+    this.logger.log(`Found ${total} tags`);
 
-        return {
-          data: data.map((tag) => this.toTagResponse(tag)),
-          total,
-        };
-      },
-    );
+    return {
+      data: data.map((tag) => this.toTagResponse(tag)),
+      total,
+    };
   }
 
   async findOne(id: number): Promise<TagResponseDto> {
-    return this.cacheService.remember(
-      this.buildTagDetailCacheKey(id),
-      TAG_DETAIL_CACHE_TTL_SECONDS,
-      async () => {
-        return this.toTagResponse(await this.findEntityOrFail(id));
-      },
-    );
+    return this.toTagResponse(await this.findEntityOrFail(id));
   }
 
   async create(createTagDto: CreateTagDto): Promise<TagResponseDto> {
@@ -64,7 +47,6 @@ export class TagService {
     const saved = await this.tagRepository.save(tag);
 
     this.logger.log(`Created tag: ${saved.name} (id: ${saved.id})`);
-    await this.clearTagCache(saved.id);
 
     return this.toTagResponse(saved);
   }
@@ -82,7 +64,6 @@ export class TagService {
     const updated = await this.tagRepository.save({ ...tag, ...updateTagDto });
 
     this.logger.log(`Updated tag id: ${id}`);
-    await this.clearTagCache(id);
 
     return this.toTagResponse(updated);
   }
@@ -92,7 +73,6 @@ export class TagService {
     await this.tagRepository.softRemove(tag);
 
     this.logger.log(`Soft deleted tag id: ${id}`);
-    await this.clearTagCache(id);
   }
 
   private async assertNameIsUnique(name: string): Promise<void> {
@@ -121,21 +101,5 @@ export class TagService {
       createdAt: tag.createdAt,
       updatedAt: tag.updatedAt,
     };
-  }
-
-  private buildTagListCacheKey(): string {
-    return "tags:list:all";
-  }
-
-  private buildTagDetailCacheKey(id: number): string {
-    return `tags:detail:${id}`;
-  }
-
-  private async clearTagCache(id?: number): Promise<void> {
-    await this.cacheService.deleteByPattern("tags:list:*");
-
-    if (id) {
-      await this.cacheService.del(this.buildTagDetailCacheKey(id));
-    }
   }
 }

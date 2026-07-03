@@ -66,20 +66,26 @@ export class ProfileService {
       throw new BadRequestException("You cannot follow yourself.");
     }
 
-    const alreadyFollowing = await this.followsRepository.findOne({
-      where: { followerId: followerUser.id, followingId: followingUser.id },
-    });
-
-    if (alreadyFollowing) {
-      throw new ConflictException(`You are already following "${username}".`);
-    }
-
-    await this.followsRepository.save(
-      this.followsRepository.create({
+    // Single atomic INSERT ... ON CONFLICT DO NOTHING. Two concurrent follow
+    // requests can no longer both pass a "do you already follow?" read and then
+    // collide on the unique index — at most one row is created, and an empty
+    // RETURNING means the edge already existed.
+    const result = await this.followsRepository
+      .createQueryBuilder()
+      .insert()
+      .into(FollowsEntity)
+      .values({
         followerId: followerUser.id,
         followingId: followingUser.id,
-      }),
-    );
+      })
+      .orIgnore()
+      .execute();
+
+    const created = result.raw.length > 0;
+
+    if (!created) {
+      throw new ConflictException(`You are already following "${username}".`);
+    }
 
     return {
       profile: {

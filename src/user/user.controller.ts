@@ -2,33 +2,51 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Param,
   Patch,
   Put,
-  ForbiddenException,
 } from "@nestjs/common";
+import { subject } from "@casl/ability";
+
 import { ParsePositiveIntPipe } from "../common/pipes/parse-positive-int.pipe";
 import { UpdateUserDto, UpdateUserRolesDto } from "./dto";
 import { UserRO } from "./user.interface";
 import { UserService } from "./user.service";
 import { User } from "../common/decorators/user.decorator";
 import { RequiredBodyPipe } from "@/common/pipes/required-body.pipe";
-import { RequirePermissions } from "@/common/decorators/permissions.decorator";
-import { Permission } from "@/auth/permissions";
 import { AuthenticatedUser } from "@/auth/auth.types";
-import { AccessControlService } from "@/auth/authorization/access-control.service";
+import { CaslAbilityFactory } from "@/authorization/abilities/casl-ability.factory";
+import { RequirePermissions } from "@/authorization/decorators/require-permissions.decorator";
+import { Action } from "@/authorization/domain/action.enum";
+import { AppSubject } from "@/authorization/domain/app-subject.enum";
 
 @Controller()
 export class UserController {
   constructor(
     private readonly userService: UserService,
-    private readonly accessControl: AccessControlService,
+    private readonly abilityFactory: CaslAbilityFactory,
   ) {}
 
   @Get("user")
   async findMe(@User("id") userId: number): Promise<UserRO> {
     return this.userService.findById(userId);
+  }
+
+  @Get("user/permissions")
+  async myPermissions(@User() currentUser: AuthenticatedUser) {
+    const ability = await this.abilityFactory.createForUser(currentUser);
+
+    return {
+      roles: currentUser.roles,
+      abilities: ability.rules.map((rule) => ({
+        action: rule.action,
+        subject: rule.subject,
+        ...(rule.conditions ? { conditions: rule.conditions } : {}),
+        ...(rule.inverted ? { inverted: true } : {}),
+      })),
+    };
   }
 
   @Put("user")
@@ -44,13 +62,12 @@ export class UserController {
     @User() currentUser: AuthenticatedUser,
     @Param("id", ParsePositiveIntPipe) id: number,
   ): Promise<void> {
-    const canDelete = this.accessControl.isOwnerOrHasPermission(
-      currentUser,
-      id,
-      Permission.DELETE_ANY_USER,
-    );
+    const ability = await this.abilityFactory.createForUser(currentUser);
 
-    if (!canDelete) {
+    // Tagging a minimal subject lets the ownership condition (own account) and
+    // the "delete any user" permission both be evaluated without a DB lookup,
+    // and without leaking whether the target id exists.
+    if (ability.cannot(Action.Delete, subject(AppSubject.User, { id }))) {
       throw new ForbiddenException("You can only delete your own account.");
     }
 
@@ -58,11 +75,12 @@ export class UserController {
   }
 
   @Patch("users/:id/roles")
-  @RequirePermissions(Permission.MANAGE_USER_ROLES)
+  @RequirePermissions({ action: Action.Manage, subject: AppSubject.Role })
   updateRoles(
+    @User("id") actorId: number,
     @Param("id", ParsePositiveIntPipe) id: number,
     @Body() dto: UpdateUserRolesDto,
   ): Promise<UserRO> {
-    return this.userService.updateRoles(id, dto.roles);
+    return this.userService.updateRoles(id, dto.roles, actorId);
   }
 }

@@ -7,15 +7,14 @@ import { PostEntity } from "./post.entity";
 import { UserEntity } from "../user/user.entity";
 import { UserModule } from "../user/user.module";
 import { TagEntity } from "../tag/tag.entity";
-import { AuthorizationModule } from "@/auth/authorization/authorization.module";
+import { RateLimitGuard } from "@/common/guards/rate-limit.guard";
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([PostEntity, UserEntity, TagEntity]),
     UserModule,
-    AuthorizationModule,
   ],
-  providers: [PostService],
+  providers: [PostService, RateLimitGuard],
   controllers: [PostController],
 })
 export class PostModule {}

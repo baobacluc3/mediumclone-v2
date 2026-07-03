@@ -12,3 +12,5 @@ ormconfig.json
 src/config.ts
 coverage
 dist/*
+REDIS_LEARNING_ROADMAP.md
+RBAC_LEARNING_ROADMAP.md

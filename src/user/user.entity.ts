@@ -9,7 +9,7 @@ import {
   UpdateDateColumn,
 } from "typeorm";
 import { PostEntity } from "@/posts/post.entity";
-import { UserRole } from "@/auth/types/auth-user.type";
+import { RoleEntity } from "@/authorization/entities/role.entity";
 
 @Entity("user")
 export class UserEntity {
@@ -34,11 +34,16 @@ export class UserEntity {
   @Column({ name: "refreshTokenHash", nullable: true, select: false })
   refreshTokenHash?: string | null;
 
-  @Column({
-    type: "simple-array",
-    default: UserRole.USER,
+  @ManyToMany(() => RoleEntity, (role) => role.users, {
+    eager: true,
+    cascade: false,
   })
-  roles: UserRole[];
+  @JoinTable({
+    name: "user_roles",
+    joinColumn: { name: "userId", referencedColumnName: "id" },
+    inverseJoinColumn: { name: "roleId", referencedColumnName: "id" },
+  })
+  roles: RoleEntity[];
 
   @CreateDateColumn()
   createdAt: Date;
