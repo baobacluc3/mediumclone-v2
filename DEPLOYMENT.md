@@ -1,49 +1,45 @@
-# Deployment (Render + Neon + Vercel)
+# Deployment (Render + Neon)
 
-Everything deploys from this GitHub repo — no CLI needed. All three services
-have a free tier.
+Live URLs:
 
-## 1. Database — Neon
+- **App**: https://mediumclone-frontend.onrender.com
+- **API**: https://mediumclone-api.onrender.com/api (health: `/api/health`)
 
-1. Sign up at https://neon.tech (GitHub login works).
-2. Create a project (name it `mediumclone`, pick a region near your users).
-3. Copy the **connection string** from the dashboard
-   (`postgres://...@...neon.tech/neondb?sslmode=require`).
+Both services deploy from this GitHub repo and auto-deploy on every push to
+`master`. The database is a free-tier Postgres on [Neon](https://neon.tech).
 
-## 2. Backend — Render
+## Architecture
 
-1. Sign up at https://render.com and connect your GitHub account.
-2. **New → Blueprint**, pick `baobacluc3/mediumclone-v2`. Render reads
-   [render.yaml](render.yaml) and proposes the `mediumclone-api` web service.
-3. When prompted for env vars:
-   - `DATABASE_URL` → the Neon connection string
-   - `ALLOWED_ORIGINS` → leave blank for now; set after step 3
-4. Deploy. Migrations run automatically on boot (`MIGRATIONS_RUN=true`).
-5. Note the service URL, e.g. `https://mediumclone-api.onrender.com`.
-   Verify: `https://mediumclone-api.onrender.com/api/health`.
+| Piece    | Where  | What                                                        |
+| -------- | ------ | ----------------------------------------------------------- |
+| Frontend | Render static site (`mediumclone-frontend`) | `frontend/` built with Vite, SPA rewrite `/* → /index.html` |
+| API      | Render web service (`mediumclone-api`)      | `npm ci --include=dev && npm run build`, `node dist/main`   |
+| Database | Neon (ap-southeast-1)                       | wired via `DATABASE_URL`; migrations run on boot (`MIGRATIONS_RUN=true`) |
 
-## 3. Frontend — Vercel
+[render.yaml](render.yaml) mirrors this setup as a Blueprint, so the stack can
+be recreated from scratch with **New → Blueprint** in the Render dashboard
+(only `DATABASE_URL` needs pasting in).
 
-1. Sign up at https://vercel.com and import `baobacluc3/mediumclone-v2`.
-2. Set **Root Directory** to `frontend` (framework auto-detects as Vite).
-3. Add env var `VITE_API_URL` = the Render URL (no `/api` suffix, no
-   trailing slash), e.g. `https://mediumclone-api.onrender.com`.
-4. Deploy and note the URL, e.g. `https://mediumclone.vercel.app`.
-
-## 4. Connect them
-
-Back in Render → `mediumclone-api` → Environment, set:
+## Environment variables (API service)
 
 ```
-ALLOWED_ORIGINS=https://<your-app>.vercel.app
+NODE_ENV=production
+DATABASE_URL=<Neon connection string>
+DB_SSL=true
+MIGRATIONS_RUN=true
+JWT_SECRET / JWT_REFRESH_SECRET  (generated)
+JWT_ACCESS_EXPIRES_IN=15m
+JWT_REFRESH_EXPIRES_IN=7d
+ALLOWED_ORIGINS=https://mediumclone-frontend.onrender.com
 ```
 
-Save; Render redeploys. Done.
+The frontend build gets `VITE_API_URL=https://mediumclone-api.onrender.com`.
 
 ## Notes
 
-- The free Render service sleeps after ~15 min idle; the first request
-  afterwards takes ~50 s to cold-start.
-- New commits to `master` auto-deploy on both Render and Vercel.
-- First admin: set `RBAC_BOOTSTRAP_ADMIN_EMAIL` on Render to the email of a
-  registered user to grant it the admin role on next boot.
+- The free API service sleeps after ~15 min idle; the first request afterwards
+  takes ~50 s to cold-start.
+- First admin: set `RBAC_BOOTSTRAP_ADMIN_EMAIL` on the API service to the email
+  of a registered user to grant it the admin role on next boot.
+- The frontend also deploys cleanly to Vercel/Netlify if ever needed
+  (`frontend/vercel.json` carries the SPA rewrite for Vercel).
